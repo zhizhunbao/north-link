@@ -1,0 +1,128 @@
+# Full Development Workflow State
+# 此文件由 /dev start 命令自动管理
+
+project: "North Link - 跨境货源通"
+started_at: "2026-02-28T12:12:08"
+current_phase: testing
+
+config:
+  parallel_frontend_backend: false
+  auto_check: true
+  docs_dir: docs
+
+phases:
+  requirements:
+    name: "需求分析"
+    status: completed
+    started_at: "2026-02-28T12:12:08"
+    completed_at: "2026-02-28T12:16:00"
+    output: "docs/requirements/requirements.md"
+    review: "docs/reviews/phase-01-requirements.md"
+    skill: "dev-product_manager"
+    role: "product_manager"
+
+  prd:
+    name: "PRD"
+    status: completed
+    started_at: "2026-02-28T12:16:00"
+    completed_at: "2026-02-28T12:18:00"
+    output: "docs/requirements/prd.md"
+    review: "docs/reviews/phase-02-prd.md"
+    skill: "dev-product_manager"
+    role: "product_manager"
+    depends_on: ["requirements"]
+
+  ux_design:
+    name: "UX 设计"
+    status: completed
+    started_at: "2026-02-28T12:18:28"
+    completed_at: "2026-02-28T12:51:00"
+    output: "docs/design/"
+    review: "docs/reviews/phase-03-ux-design.md"
+    skill: "dev-ui_ux_designer"
+    depends_on: ["prd"]
+
+  architecture:
+    name: "系统架构"
+    status: completed
+    started_at: "2026-02-28T13:01:39"
+    completed_at: "2026-02-28T13:12:00"
+    output: "docs/architecture/system-architecture.md"
+    review: "docs/reviews/phase-04-architecture.md"
+    skill: "dev-senior_architect"
+    role: "architect"
+    depends_on: ["prd"]
+
+  stories:
+    name: "任务分解"
+    status: completed
+    started_at: "2026-02-28T13:17:14"
+    completed_at: "2026-02-28T13:40:00"
+    output: "docs/sprints/sprint-plan.md"
+    review: "docs/reviews/phase-05-stories.md"
+    skill: "dev-senior_fullstack"
+    role: "tech_lead"
+    depends_on: ["architecture"]
+
+  database:
+    name: "数据库设计"
+    status: completed
+    started_at: "2026-02-28T13:44:34"
+    completed_at: "2026-02-28T13:48:00"
+    output: "docs/codemaps/database.md"
+    review: "docs/reviews/phase-06-database.md"
+    skill: "dev-senior_data_engineer"
+    role: "architect"
+    depends_on: ["architecture"]
+
+  backend:
+    name: "后端开发"
+    status: completed
+    started_at: "2026-02-28T13:55:35"
+    completed_at: "2026-02-28T19:15:00"
+    output: "backend/app/"
+    review: "docs/reviews/phase-07-backend.md"
+    skill: "dev-senior_backend"
+    role: "backend_engineer"
+    depends_on: ["database", "stories"]
+
+  frontend:
+    name: "前端开发"
+    status: completed
+    started_at: "2026-02-28T19:21:00"
+    completed_at: "2026-02-28T19:55:00"
+    output: "frontend/src/"
+    review: "docs/reviews/phase-08-frontend.md"
+    skill: "dev-senior_frontend"
+    role: "frontend_engineer"
+    depends_on: ["stories"]
+    can_parallel_with: ["backend"]
+
+  testing:
+    name: "测试"
+    status: pending
+    started_at: ""
+    completed_at: ""
+    output: "docs/test-report.md"
+    skill: "dev-senior_qa"
+    role: "qa_engineer"
+    depends_on: ["backend", "frontend"]
+
+  review:
+    name: "代码审查"
+    status: pending
+    started_at: ""
+    completed_at: ""
+    output: "docs/review-report.md"
+    skill: "dev-code_reviewer"
+    role: "code_reviewer"
+    depends_on: ["testing"]
+
+  deployment:
+    name: "部署"
+    status: pending
+    started_at: ""
+    completed_at: ""
+    skill: "dev-senior_devops"
+    role: "devops_engineer"
+    depends_on: ["review"]

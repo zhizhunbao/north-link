@@ -1,0 +1,29 @@
+import uuid
+from fastapi import FastAPI
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.cors import CORSMiddleware
+
+from app.core.config import settings
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    A15. 中间件 (日志追踪).
+    出处: fastapi-best-practices
+    """
+    async def dispatch(self, request, call_next):
+        request_id = str(uuid.uuid4())[:8]
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+def setup_middleware(app: FastAPI) -> None:
+    # CORS 中间件
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(RequestLoggingMiddleware)

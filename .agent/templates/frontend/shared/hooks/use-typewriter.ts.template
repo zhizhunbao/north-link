@@ -1,0 +1,185 @@
+/**
+ * Typewriter Effect Hook
+ *
+ * Creates a typing animation effect for streaming AI responses.
+ * Dynamically adjusts speed based on queue length to keep up with SSE streams.
+ *
+ * @source JDGenie UI
+ *
+ * @example
+ * // Basic usage with streaming text
+ * const { displayText, addText, clear } = useTypewriter()
+ *
+ * // In SSE handler
+ * eventSource.onmessage = (e) => {
+ *   addText(e.data)
+ * }
+ *
+ * return <div>{displayText}</div>
+ *
+ * @example
+ * // With custom speed
+ * const { displayText, addText } = useTypewriter({ maxStepMs: 30 })
+ */
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+// ============================================================================
+// TypeWriterCore - Character queue engine with dynamic speed
+// ============================================================================
+
+interface TypeWriterCoreOptions {
+  onConsume: (char: string) => void
+  maxStepMs?: number
+}
+
+class TypeWriterCore {
+  private onConsume: (char: string) => void
+  private queueList: string[] = []
+  private maxStepMs: number = 50
+  private maxQueueNum: number = 2000
+  private timer: ReturnType<typeof setTimeout> | undefined
+
+  constructor({ onConsume, maxStepMs }: TypeWriterCoreOptions) {
+    this.onConsume = onConsume
+    if (maxStepMs !== undefined) {
+      this.maxStepMs = maxStepMs
+    }
+  }
+
+  /**
+   * Dynamic speed calculation - faster when queue is long
+   */
+  private dynamicSpeed(): number {
+    const speedQueueNum = this.maxQueueNum / this.queueList.length
+    return Math.min(Math.round(speedQueueNum), this.maxStepMs)
+  }
+
+  /**
+   * Add text to the queue (splits into characters)
+   */
+  add(str: string): void {
+    if (!str) return
+    this.queueList = [...this.queueList, ...str.split('')]
+  }
+
+  /**
+   * Consume one character from queue
+   */
+  private consume(): void {
+    if (this.queueList.length > 0) {
+      const char = this.queueList.shift()
+      if (char) this.onConsume(char)
+    }
+  }
+
+  /**
+   * Schedule next character consumption
+   */
+  private next(): void {
+    this.timer = setTimeout(() => {
+      if (this.queueList.length > 0) {
+        this.consume()
+        this.next()
+      }
+    }, this.dynamicSpeed())
+  }
+
+  /**
+   * Start consuming the queue
+   */
+  start(): void {
+    this.next()
+  }
+
+  /**
+   * Stop and cleanup
+   */
+  stop(): void {
+    if (this.timer) clearTimeout(this.timer)
+  }
+
+  /**
+   * Clear queue and stop
+   */
+  clear(): void {
+    this.queueList = []
+    this.stop()
+  }
+
+  /**
+   * Check if queue is empty
+   */
+  get isEmpty(): boolean {
+    return this.queueList.length === 0
+  }
+}
+
+// ============================================================================
+// useTypewriter Hook
+// ============================================================================
+
+interface UseTypewriterOptions {
+  maxStepMs?: number
+}
+
+interface UseTypewriterReturn {
+  displayText: string
+  addText: (text: string) => void
+  clear: () => void
+  isTyping: boolean
+}
+
+export function useTypewriter(
+  options: UseTypewriterOptions = {}
+): UseTypewriterReturn {
+  const [displayText, setDisplayText] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+
+  const coreRef = useRef<TypeWriterCore | null>(null)
+
+  // Initialize core on mount
+  useEffect(() => {
+    coreRef.current = new TypeWriterCore({
+      onConsume: (char) => setDisplayText((prev) => prev + char),
+      maxStepMs: options.maxStepMs,
+    })
+
+    return () => {
+      coreRef.current?.stop()
+    }
+  }, [options.maxStepMs])
+
+  const addText = useCallback((text: string) => {
+    if (coreRef.current) {
+      const wasEmpty = coreRef.current.isEmpty
+      coreRef.current.add(text)
+      if (wasEmpty) {
+        setIsTyping(true)
+        coreRef.current.start()
+      }
+    }
+  }, [])
+
+  const clear = useCallback(() => {
+    coreRef.current?.clear()
+    setDisplayText('')
+    setIsTyping(false)
+  }, [])
+
+  // Check if typing is complete
+  useEffect(() => {
+    if (isTyping) {
+      const checkInterval = setInterval(() => {
+        if (coreRef.current?.isEmpty) {
+          setIsTyping(false)
+        }
+      }, 100)
+      return () => clearInterval(checkInterval)
+    }
+  }, [isTyping])
+
+  return { displayText, addText, clear, isTyping }
+}
+
+export default useTypewriter
+

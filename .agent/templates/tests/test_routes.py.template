@@ -1,0 +1,118 @@
+"""
+{{FeatureName}} Routes Tests
+
+测试 {{feature_name}} API 端点。
+Created: {{date}}
+"""
+
+import pytest
+from httpx import AsyncClient
+
+from app.main import app
+
+
+@pytest.fixture
+def sample_{{feature_name}}_data():
+    """测试用的 {{feature_name}} 数据"""
+    return {
+        "name": "Test {{FeatureName}}",
+        "description": "Test description",
+    }
+
+
+class Test{{FeatureName}}Routes:
+    """{{FeatureName}} 路由测试"""
+
+    @pytest.mark.asyncio
+    async def test_list_{{feature_name}}_empty(self, async_client: AsyncClient):
+        """测试获取空列表"""
+        response = await async_client.get("/api/v1/{{feature_name}}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["items"] == []
+        assert data["data"]["total"] == 0
+
+    @pytest.mark.asyncio
+    async def test_create_{{feature_name}}(
+        self,
+        async_client: AsyncClient,
+        sample_{{feature_name}}_data: dict,
+    ):
+        """测试创建 {{feature_name}}"""
+        response = await async_client.post(
+            "/api/v1/{{feature_name}}",
+            json=sample_{{feature_name}}_data,
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["name"] == sample_{{feature_name}}_data["name"]
+        assert "id" in data["data"]
+
+    @pytest.mark.asyncio
+    async def test_create_{{feature_name}}_invalid(self, async_client: AsyncClient):
+        """测试创建 {{feature_name}} - 无效数据"""
+        response = await async_client.post(
+            "/api/v1/{{feature_name}}",
+            json={"name": ""},  # 空名称
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    @pytest.mark.asyncio
+    async def test_get_{{feature_name}}_not_found(self, async_client: AsyncClient):
+        """测试获取不存在的 {{feature_name}}"""
+        response = await async_client.get("/api/v1/{{feature_name}}/nonexistent-id")
+
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_update_{{feature_name}}(
+        self,
+        async_client: AsyncClient,
+        sample_{{feature_name}}_data: dict,
+    ):
+        """测试更新 {{feature_name}}"""
+        # 先创建
+        create_response = await async_client.post(
+            "/api/v1/{{feature_name}}",
+            json=sample_{{feature_name}}_data,
+        )
+        created_id = create_response.json()["data"]["id"]
+
+        # 再更新
+        update_data = {"name": "Updated Name"}
+        response = await async_client.put(
+            f"/api/v1/{{feature_name}}/{created_id}",
+            json=update_data,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["name"] == "Updated Name"
+
+    @pytest.mark.asyncio
+    async def test_delete_{{feature_name}}(
+        self,
+        async_client: AsyncClient,
+        sample_{{feature_name}}_data: dict,
+    ):
+        """测试删除 {{feature_name}}"""
+        # 先创建
+        create_response = await async_client.post(
+            "/api/v1/{{feature_name}}",
+            json=sample_{{feature_name}}_data,
+        )
+        created_id = create_response.json()["data"]["id"]
+
+        # 再删除
+        response = await async_client.delete(f"/api/v1/{{feature_name}}/{created_id}")
+
+        assert response.status_code == 204
+
+        # 验证已删除
+        get_response = await async_client.get(f"/api/v1/{{feature_name}}/{created_id}")
+        assert get_response.status_code == 404

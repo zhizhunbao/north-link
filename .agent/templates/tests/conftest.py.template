@@ -1,0 +1,88 @@
+"""
+Pytest Fixtures
+
+共享的测试 fixtures。
+"""
+
+import pytest
+from unittest.mock import AsyncMock, MagicMock
+from httpx import AsyncClient, ASGITransport
+
+from app.main import app
+from app.core.config import get_settings
+
+
+# ============================================
+# App Fixtures
+# ============================================
+
+@pytest.fixture
+def settings():
+    """测试配置"""
+    return get_settings()
+
+
+@pytest.fixture
+async def client():
+    """异步测试客户端"""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        yield ac
+
+
+# ============================================
+# Mock Fixtures
+# ============================================
+
+@pytest.fixture
+def mock_openai_service():
+    """Mock Azure OpenAI 服务"""
+    mock = AsyncMock()
+    mock.chat_completion.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content="Mock response"))]
+    )
+    mock.embed.return_value = [0.1] * 1536
+    return mock
+
+
+@pytest.fixture
+def mock_search_service():
+    """Mock Azure Search 服务"""
+    mock = AsyncMock()
+    mock.hybrid_search.return_value = []
+    return mock
+
+
+@pytest.fixture
+def mock_storage_service():
+    """Mock Azure Storage 服务"""
+    mock = AsyncMock()
+    mock.upload_blob.return_value = "https://example.com/blob"
+    mock.download_blob.return_value = b"content"
+    return mock
+
+
+# ============================================
+# Data Fixtures
+# ============================================
+
+@pytest.fixture
+def sample_user():
+    """示例用户数据"""
+    return {
+        "id": "test-user-id",
+        "email": "test@example.com",
+        "name": "Test User",
+    }
+
+
+@pytest.fixture
+def sample_document():
+    """示例文档数据"""
+    return {
+        "id": "test-doc-id",
+        "title": "Test Document",
+        "content": "Test content",
+    }

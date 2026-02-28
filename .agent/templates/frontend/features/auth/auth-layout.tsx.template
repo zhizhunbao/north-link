@@ -1,0 +1,38 @@
+/**
+ * Auth Layout
+ *
+ * Centered layout wrapper for authentication pages (sign-in, sign-up, OTP, etc).
+ *
+ * @source shadcn-admin
+ * @i18n Replace heading text with t() calls
+ *
+ * @example
+ * <AuthLayout>
+ *   <SignInForm />
+ * </AuthLayout>
+ */
+import { cn } from '{{alias}}/lib/utils'
+
+interface AuthLayoutProps {
+  children: React.ReactNode
+  className?: string
+}
+
+export function AuthLayout({ children, className }: AuthLayoutProps) {
+  return (
+    <div className='container grid h-svh max-w-none items-center justify-center'>
+      <div
+        className={cn(
+          'mx-auto flex w-full flex-col justify-center space-y-2 py-8 sm:w-[480px] sm:p-8',
+          className
+        )}
+      >
+        <div className='mb-4 flex items-center justify-center'>
+          {/* Replace with your logo component */}
+          <h1 className='text-xl font-medium'>App Name</h1>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}

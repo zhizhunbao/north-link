@@ -1,0 +1,14 @@
+/**
+ * Landing Page Components
+ *
+ * Barrel exports for marketing/landing page components.
+ *
+ * @source taxonomy (shadcn official)
+ */
+export { MainNav, type NavItem } from './main-nav'
+export { MobileNav } from './mobile-nav'
+export { SiteFooter } from './site-footer'
+export { HeroSection } from './hero-section'
+export { FeatureSection } from './feature-section'
+export { MarketingLayout } from './marketing-layout'
+

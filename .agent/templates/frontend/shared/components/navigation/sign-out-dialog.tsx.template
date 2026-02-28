@@ -1,0 +1,58 @@
+/**
+ * Sign Out Dialog
+ *
+ * Confirmation dialog for signing out with redirect preservation.
+ *
+ * @source shadcn-admin
+ * @requires confirm-dialog component
+ * @router Adapt useNavigate and useLocation for your router
+ * @i18n Replace all text strings with t() calls
+ *
+ * @example
+ * const [open, setOpen] = useState(false)
+ * <SignOutDialog open={open} onOpenChange={setOpen} />
+ */
+import { useNavigate, useLocation } from 'react-router-dom'
+import { ConfirmDialog } from '{{alias}}/shared/components/confirm-dialog'
+
+interface SignOutDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSignOut?: () => void | Promise<void>
+}
+
+export function SignOutDialog({
+  open,
+  onOpenChange,
+  onSignOut,
+}: SignOutDialogProps) {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const handleSignOut = async () => {
+    // Call custom sign out handler if provided
+    if (onSignOut) {
+      await onSignOut()
+    }
+
+    // Preserve current location for redirect after sign-in
+    const currentPath = location.pathname + location.search
+    navigate(`/sign-in?redirect=${encodeURIComponent(currentPath)}`, {
+      replace: true,
+    })
+  }
+
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Sign out"
+      desc="Are you sure you want to sign out? You will need to sign in again to access your account."
+      confirmText="Sign out"
+      destructive
+      handleConfirm={handleSignOut}
+      className="sm:max-w-sm"
+    />
+  )
+}
+

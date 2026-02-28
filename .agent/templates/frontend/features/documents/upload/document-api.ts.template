@@ -1,0 +1,274 @@
+/**
+ * DocumentAPI - Frontend API layer for document CRUD, upload, preview, and processing
+ *
+ * Provides typed wrapper functions for all document-related backend endpoints.
+ * Handles FormData upload, JSON payloads, and task status polling.
+ *
+ * @module features/documents/upload
+ * @source rag-web-ui/frontend/src/lib/api.ts (api helper pattern)
+ * @source rag-web-ui/frontend/src/components/knowledge-base/document-upload-steps.tsx (API calls)
+ * @source rag-web-ui/frontend/src/app/dashboard/knowledge/[id]/upload/page.tsx (upload + process flow)
+ * @reference https://github.com/xyb/rag-web-ui
+ * @template S1-M2-4 frontend/features/documents/upload/document-api.ts
+ */
+
+import type {
+  Document,
+  UploadResult,
+  ProcessingTaskResponse,
+  TaskStatus,
+  PreviewResponse,
+  ChunkingConfig,
+} from './types'
+
+// ============================================================
+// API Client Factory
+// ============================================================
+
+interface DocumentApiOptions {
+  /** API base URL (no trailing slash) */
+  baseUrl?: string
+
+  /** Custom fetch function (for interceptors, auth headers, etc.) */
+  fetchFn?: typeof fetch
+
+  /** Function to get auth token */
+  getToken?: () => string | null
+}
+
+/**
+ * Create a typed document API client.
+ *
+ * Usage:
+ * ```ts
+ * const api = createDocumentApi({
+ *   baseUrl: '/api',
+ *   getToken: () => authStore.getState().token,
+ * })
+ *
+ * const results = await api.uploadFiles(kbId, fileList)
+ * ```
+ */
+export function createDocumentApi(options: DocumentApiOptions = {}) {
+  const {
+    baseUrl = '{{API_BASE_URL}}',
+    fetchFn = fetch,
+    getToken,
+  } = options
+
+  // Internal fetch wrapper with auth
+  async function request<T>(
+    path: string,
+    init?: RequestInit
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      ...(init?.headers as Record<string, string>),
+    }
+
+    // Inject auth token if available
+    const token = getToken?.()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    // Default to JSON content type (unless FormData)
+    if (!headers['Content-Type'] && init?.body && !(init.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json'
+    }
+
+    // Remove Content-Type for FormData (browser sets boundary automatically)
+    if (init?.body instanceof FormData) {
+      delete headers['Content-Type']
+    }
+
+    const res = await fetchFn(`${baseUrl}${path}`, {
+      ...init,
+      headers,
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}))
+      throw new Error(
+        errorData.detail || errorData.message || `HTTP ${res.status}`
+      )
+    }
+
+    return res.json()
+  }
+
+  // --------------------------------------------------------
+  // Knowledge Base Document Endpoints
+  // --------------------------------------------------------
+
+  return {
+    /**
+     * Get all documents in a knowledge base.
+     *
+     * @source GET /knowledge-base/{kbId}
+     */
+    async getDocuments(kbId: number | string): Promise<Document[]> {
+      const data = await request<{ documents: Document[] }>(
+        `/knowledge-base/${kbId}`
+      )
+      return data.documents || []
+    },
+
+    /**
+     * Upload files to a knowledge base.
+     * Supports multiple files via FormData.
+     *
+     * @source POST /knowledge-base/{kbId}/documents/upload
+     * @source rag-web-ui document-upload-steps.tsx lines 137-154
+     */
+    async uploadFiles(
+      kbId: number | string,
+      files: File[]
+    ): Promise<UploadResult[]> {
+      const formData = new FormData()
+      files.forEach((file) => formData.append('files', file))
+
+      return request<UploadResult[]>(
+        `/knowledge-base/${kbId}/documents/upload`,
+        { method: 'POST', body: formData }
+      )
+    },
+
+    /**
+     * Upload a single file with progress tracking via XMLHttpRequest.
+     * Returns a promise that resolves when upload completes.
+     *
+     * @source rag-web-ui upload/page.tsx lines 92-134
+     */
+    uploadFileWithProgress(
+      kbId: number | string,
+      file: File,
+      onProgress?: (percent: number) => void
+    ): Promise<UploadResult> {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        const formData = new FormData()
+        formData.append('file', file)
+
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            onProgress?.(Math.round((e.loaded / e.total) * 100))
+          }
+        })
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(JSON.parse(xhr.responseText))
+          } else {
+            try {
+              const err = JSON.parse(xhr.responseText)
+              reject(new Error(err.detail || err.message || `HTTP ${xhr.status}`))
+            } catch {
+              reject(new Error(`Upload failed with status ${xhr.status}`))
+            }
+          }
+        })
+
+        xhr.addEventListener('error', () => reject(new Error('Network error')))
+        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')))
+
+        xhr.open('POST', `${baseUrl}/knowledge-base/${kbId}/documents/upload`)
+        const token = getToken?.()
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        xhr.send(formData)
+      })
+    },
+
+    /**
+     * Preview document chunks with specified chunking parameters.
+     *
+     * @source POST /knowledge-base/{kbId}/documents/preview
+     * @source rag-web-ui document-upload-steps.tsx lines 200-234
+     */
+    async previewChunks(
+      kbId: number | string,
+      documentIds: number[],
+      config: ChunkingConfig
+    ): Promise<Record<number, PreviewResponse>> {
+      return request<Record<number, PreviewResponse>>(
+        `/knowledge-base/${kbId}/documents/preview`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            document_ids: documentIds,
+            chunk_size: config.chunkSize,
+            chunk_overlap: config.chunkOverlap,
+          }),
+        }
+      )
+    },
+
+    /**
+     * Start background processing (chunking + embedding) for uploaded files.
+     *
+     * @source POST /knowledge-base/{kbId}/documents/process
+     * @source rag-web-ui document-upload-steps.tsx lines 237-283
+     */
+    async startProcessing(
+      kbId: number | string,
+      uploads: Array<{
+        upload_id: number
+        file_name: string
+        temp_path?: string
+      }>
+    ): Promise<ProcessingTaskResponse> {
+      return request<ProcessingTaskResponse>(
+        `/knowledge-base/${kbId}/documents/process`,
+        {
+          method: 'POST',
+          body: JSON.stringify(
+            uploads.map((u) => ({
+              ...u,
+              status: 'pending',
+              skip_processing: false,
+            }))
+          ),
+        }
+      )
+    },
+
+    /**
+     * Check processing task status (for polling).
+     *
+     * @source GET /knowledge-base/{kbId}/documents/tasks?task_ids=1,2,3
+     * @source rag-web-ui document-upload-steps.tsx lines 286-345
+     */
+    async getTaskStatus(
+      kbId: number | string,
+      taskIds: number[]
+    ): Promise<Record<number, TaskStatus>> {
+      const response = await request<Record<string, TaskStatus>>(
+        `/knowledge-base/${kbId}/documents/tasks?task_ids=${taskIds.join(',')}`
+      )
+
+      // Convert string keys to number keys
+      return Object.entries(response).reduce<Record<number, TaskStatus>>(
+        (acc, [key, val]) => ({ ...acc, [parseInt(key)]: val }),
+        {}
+      )
+    },
+
+    /**
+     * Delete a document from the knowledge base.
+     *
+     * @source DELETE /knowledge-base/{kbId}/documents/{docId}
+     */
+    async deleteDocument(
+      kbId: number | string,
+      documentId: number
+    ): Promise<void> {
+      await request(`/knowledge-base/${kbId}/documents/${documentId}`, {
+        method: 'DELETE',
+      })
+    },
+  }
+}
+
+/** Default API client instance */
+export const documentApi = createDocumentApi()
+
+export default createDocumentApi

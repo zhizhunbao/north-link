@@ -1,0 +1,366 @@
+/**
+ * Settings Page - Profile, email, password, public toggle
+ *
+ * @module frontend/features/settings/settings-page
+ * @source ui-tabler/preview/pages/settings.html (68L)
+ * @reference https://github.com/tabler/tabler
+ * @template S6-M3-F1
+ *
+ * Settings page layout:
+ * 1. Profile section — avatar upload, business profile fields
+ * 2. Email section — display + change button
+ * 3. Password section — set new password button
+ * 4. Public profile toggle — switch visibility
+ * 5. Footer — Cancel/Submit buttons
+ *
+ * Key patterns from Tabler:
+ * - Card-based form sections with card-title separators
+ * - Row/col responsive grid for form fields
+ * - Toggle switch for boolean settings
+ * - Sticky footer with action buttons
+ */
+
+import React, { useState } from "react";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  company?: string;
+  companyId?: string;
+  location?: string;
+  avatarUrl?: string;
+  isPublic: boolean;
+}
+
+export interface SettingsPageProps {
+  user: UserProfile;
+  onSave: (user: UserProfile) => void;
+  onCancel: () => void;
+  onAvatarChange?: (file: File) => void;
+  onPasswordChange?: () => void;
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
+const s = {
+  card: {
+    background: "var(--card-bg, #ffffff)",
+    borderRadius: "var(--radius-lg, 12px)",
+    border: "1px solid var(--border-color, #e2e8f0)",
+    overflow: "hidden",
+  } as React.CSSProperties,
+
+  cardBody: {
+    padding: "24px",
+  } as React.CSSProperties,
+
+  pageTitle: {
+    fontSize: "var(--text-xl, 20px)",
+    fontWeight: 700,
+    color: "var(--text-primary, #1e293b)",
+    marginBottom: "24px",
+  } as React.CSSProperties,
+
+  sectionTitle: {
+    fontSize: "var(--text-base, 16px)",
+    fontWeight: 600,
+    color: "var(--text-primary, #1e293b)",
+    marginTop: "24px",
+    marginBottom: "8px",
+  } as React.CSSProperties,
+
+  sectionDesc: {
+    fontSize: "var(--text-sm, 14px)",
+    color: "var(--text-secondary, #64748b)",
+    marginBottom: "12px",
+  } as React.CSSProperties,
+
+  row: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: "16px",
+    marginBottom: "16px",
+  } as React.CSSProperties,
+
+  label: {
+    display: "block",
+    fontSize: "var(--text-sm, 14px)",
+    fontWeight: 500,
+    color: "var(--text-primary, #1e293b)",
+    marginBottom: "6px",
+  } as React.CSSProperties,
+
+  input: {
+    width: "100%",
+    padding: "8px 12px",
+    fontSize: "var(--text-sm, 14px)",
+    color: "var(--text-primary, #1e293b)",
+    background: "var(--input-bg, #ffffff)",
+    border: "1px solid var(--border-color, #e2e8f0)",
+    borderRadius: "var(--radius-sm, 6px)",
+    outline: "none",
+    transition: "border-color 0.15s ease",
+  } as React.CSSProperties,
+
+  avatarRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    marginBottom: "16px",
+  } as React.CSSProperties,
+
+  avatar: {
+    width: "64px",
+    height: "64px",
+    borderRadius: "50%",
+    background: "var(--bg-secondary, #f1f5f9)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px",
+    color: "var(--text-secondary, #64748b)",
+    overflow: "hidden",
+  } as React.CSSProperties,
+
+  btn: {
+    padding: "8px 16px",
+    fontSize: "var(--text-sm, 14px)",
+    fontWeight: 500,
+    borderRadius: "var(--radius-sm, 6px)",
+    cursor: "pointer",
+    border: "1px solid var(--border-color, #e2e8f0)",
+    background: "var(--bg-primary, #ffffff)",
+    color: "var(--text-primary, #1e293b)",
+    transition: "background 0.15s ease",
+  } as React.CSSProperties,
+
+  btnPrimary: {
+    padding: "8px 16px",
+    fontSize: "var(--text-sm, 14px)",
+    fontWeight: 500,
+    borderRadius: "var(--radius-sm, 6px)",
+    cursor: "pointer",
+    border: "none",
+    background: "var(--color-brand, #4318ff)",
+    color: "#ffffff",
+    transition: "background 0.15s ease",
+  } as React.CSSProperties,
+
+  btnDanger: {
+    padding: "8px 16px",
+    fontSize: "var(--text-sm, 14px)",
+    fontWeight: 500,
+    borderRadius: "var(--radius-sm, 6px)",
+    cursor: "pointer",
+    border: "1px solid var(--color-error, #ef4444)",
+    background: "transparent",
+    color: "var(--color-error, #ef4444)",
+    transition: "background 0.15s ease",
+  } as React.CSSProperties,
+
+  footer: {
+    padding: "16px 24px",
+    borderTop: "1px solid var(--border-color, #e2e8f0)",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "12px",
+    background: "var(--bg-secondary, #f8fafc)",
+  } as React.CSSProperties,
+
+  toggle: {
+    position: "relative" as const,
+    width: "48px",
+    height: "24px",
+    borderRadius: "12px",
+    cursor: "pointer",
+    transition: "background 0.2s ease",
+    border: "none",
+    padding: 0,
+  } as React.CSSProperties,
+
+  toggleKnob: {
+    position: "absolute" as const,
+    top: "2px",
+    width: "20px",
+    height: "20px",
+    borderRadius: "50%",
+    background: "#ffffff",
+    transition: "left 0.2s ease",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+  } as React.CSSProperties,
+};
+
+// ─── Settings Page Component ────────────────────────────────────────────────
+// @source ui-tabler/preview/pages/settings.html (6-68L)
+
+export function SettingsPage({
+  user,
+  onSave,
+  onCancel,
+  onAvatarChange,
+  onPasswordChange,
+}: SettingsPageProps) {
+  const [form, setForm] = useState<UserProfile>({ ...user });
+
+  const update = (key: keyof UserProfile, value: string | boolean) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(form);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={s.card}>
+        <div style={s.cardBody}>
+          <h2 style={s.pageTitle}>My Account</h2>
+
+          {/* Profile Details */}
+          <h3 style={s.sectionTitle}>Profile Details</h3>
+          <div style={s.avatarRow}>
+            <div style={s.avatar}>
+              {form.avatarUrl ? (
+                <img
+                  src={form.avatarUrl}
+                  alt="Avatar"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                "👤"
+              )}
+            </div>
+            <button
+              type="button"
+              style={s.btn}
+              onClick={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = "image/*";
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file && onAvatarChange) onAvatarChange(file);
+                };
+                input.click();
+              }}
+            >
+              Change avatar
+            </button>
+            <button type="button" style={s.btnDanger}>Delete avatar</button>
+          </div>
+
+          {/* Business Profile */}
+          <h3 style={s.sectionTitle}>Business Profile</h3>
+          <div style={s.row}>
+            <div>
+              <label style={s.label} htmlFor="firstName">First Name</label>
+              <input
+                style={s.input}
+                id="firstName"
+                value={form.firstName}
+                onChange={(e) => update("firstName", e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={s.label} htmlFor="lastName">Last Name</label>
+              <input
+                style={s.input}
+                id="lastName"
+                value={form.lastName}
+                onChange={(e) => update("lastName", e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={s.label} htmlFor="location">Location</label>
+              <input
+                style={s.input}
+                id="location"
+                value={form.location || ""}
+                onChange={(e) => update("location", e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <h3 style={s.sectionTitle}>Email</h3>
+          <p style={s.sectionDesc}>
+            This contact will be shown to others publicly, so choose it
+            carefully.
+          </p>
+          <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
+            <div style={{ flex: 1, maxWidth: "320px" }}>
+              <label style={s.label} htmlFor="email">Email</label>
+              <input
+                style={s.input}
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => update("email", e.target.value)}
+              />
+            </div>
+            <button type="button" style={s.btn}>Change</button>
+          </div>
+
+          {/* Password */}
+          <h3 style={s.sectionTitle}>Password</h3>
+          <p style={s.sectionDesc}>
+            You can set a permanent password if you don&apos;t want to use
+            temporary login codes.
+          </p>
+          <button
+            type="button"
+            style={s.btn}
+            onClick={onPasswordChange}
+          >
+            Set new password
+          </button>
+
+          {/* Public Profile Toggle */}
+          <h3 style={s.sectionTitle}>Public profile</h3>
+          <p style={s.sectionDesc}>
+            Making your profile public means that anyone on the network will be
+            able to find you.
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button
+              type="button"
+              style={{
+                ...s.toggle,
+                background: form.isPublic
+                  ? "var(--color-brand, #4318ff)"
+                  : "var(--bg-tertiary, #cbd5e1)",
+              }}
+              onClick={() => update("isPublic", !form.isPublic)}
+              role="switch"
+              aria-checked={form.isPublic}
+            >
+              <span
+                style={{
+                  ...s.toggleKnob,
+                  left: form.isPublic ? "26px" : "2px",
+                }}
+              />
+            </button>
+            <span style={{ fontSize: "var(--text-sm, 14px)", color: "var(--text-primary, #1e293b)" }}>
+              {form.isPublic
+                ? "You're currently visible"
+                : "You're currently invisible"}
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={s.footer}>
+          <button type="button" style={s.btn} onClick={onCancel}>Cancel</button>
+          <button type="submit" style={s.btnPrimary}>Submit</button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+export default SettingsPage;

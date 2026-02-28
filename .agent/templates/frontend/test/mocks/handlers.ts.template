@@ -1,0 +1,231 @@
+/**
+ * MSW Mock Handlers - API mock definitions for testing
+ *
+ * @module frontend/test/mocks/handlers
+ * @source bulletproof-react/src/testing/mocks/ (MSW handler pattern)
+ * @reference https://github.com/alan2207/bulletproof-react
+ * @reference https://mswjs.io/docs/getting-started
+ * @template S2-M3-F2
+ *
+ * Mock Service Worker (MSW) handler templates for common API patterns:
+ * - Auth endpoints (login, register, me)
+ * - CRUD endpoints (list, get, create, update, delete)
+ * - Streaming SSE endpoints
+ *
+ * Usage:
+ *   import { handlers } from './handlers';
+ *   const server = setupServer(...handlers);
+ *   beforeAll(() => server.listen());
+ *   afterAll(() => server.close());
+ */
+
+import { http, HttpResponse, delay } from "msw";
+
+// ─── Config ─────────────────────────────────────────────────────────────────
+
+const API_BASE = "/api/v1";
+
+// ─── Mock Data ──────────────────────────────────────────────────────────────
+
+const mockUser = {
+  id: "user-1",
+  name: "Test User",
+  email: "test@example.com",
+  avatar: null,
+  role: "user",
+};
+
+const mockToken = "mock-jwt-token-for-testing";
+
+// ─── Auth Handlers ──────────────────────────────────────────────────────────
+
+export const authHandlers = [
+  // POST /api/v1/auth/login
+  http.post(`${API_BASE}/auth/login`, async ({ request }) => {
+    await delay(100);
+    const body = (await request.json()) as { email: string; password: string };
+
+    if (body.email === "fail@example.com") {
+      return HttpResponse.json(
+        { message: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+
+    return HttpResponse.json({
+      user: mockUser,
+      token: mockToken,
+    });
+  }),
+
+  // POST /api/v1/auth/register
+  http.post(`${API_BASE}/auth/register`, async ({ request }) => {
+    await delay(100);
+    const body = (await request.json()) as Record<string, string>;
+
+    return HttpResponse.json(
+      {
+        user: { ...mockUser, name: body.name, email: body.email },
+        token: mockToken,
+      },
+      { status: 201 }
+    );
+  }),
+
+  // GET /api/v1/auth/me
+  http.get(`${API_BASE}/auth/me`, async ({ request }) => {
+    await delay(50);
+    const authHeader = request.headers.get("Authorization");
+
+    if (!authHeader?.startsWith("Bearer ")) {
+      return HttpResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    return HttpResponse.json({ user: mockUser });
+  }),
+
+  // POST /api/v1/auth/logout
+  http.post(`${API_BASE}/auth/logout`, async () => {
+    await delay(50);
+    return HttpResponse.json({ message: "Logged out" });
+  }),
+];
+
+// ─── CRUD Handlers Factory ──────────────────────────────────────────────────
+
+interface MockItem {
+  id: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Creates standard CRUD handlers for a resource.
+ * @example
+ * const chatHandlers = createCrudHandlers('/chats', mockChats);
+ */
+export function createCrudHandlers(
+  path: string,
+  initialData: MockItem[] = []
+) {
+  let data = [...initialData];
+
+  return [
+    // GET list
+    http.get(`${API_BASE}${path}`, async ({ request }) => {
+      await delay(100);
+      const url = new URL(request.url);
+      const page = parseInt(url.searchParams.get("page") ?? "1");
+      const limit = parseInt(url.searchParams.get("limit") ?? "10");
+      const start = (page - 1) * limit;
+
+      return HttpResponse.json({
+        items: data.slice(start, start + limit),
+        total: data.length,
+        page,
+        limit,
+      });
+    }),
+
+    // GET single
+    http.get(`${API_BASE}${path}/:id`, async ({ params }) => {
+      await delay(50);
+      const item = data.find((d) => d.id === params.id);
+      if (!item) {
+        return HttpResponse.json(
+          { message: "Not found" },
+          { status: 404 }
+        );
+      }
+      return HttpResponse.json(item);
+    }),
+
+    // POST create
+    http.post(`${API_BASE}${path}`, async ({ request }) => {
+      await delay(100);
+      const body = (await request.json()) as Record<string, unknown>;
+      const newItem = {
+        id: `item-${Date.now()}`,
+        ...body,
+        createdAt: new Date().toISOString(),
+      };
+      data.push(newItem);
+      return HttpResponse.json(newItem, { status: 201 });
+    }),
+
+    // PUT update
+    http.put(`${API_BASE}${path}/:id`, async ({ params, request }) => {
+      await delay(100);
+      const body = (await request.json()) as Record<string, unknown>;
+      const index = data.findIndex((d) => d.id === params.id);
+      if (index === -1) {
+        return HttpResponse.json(
+          { message: "Not found" },
+          { status: 404 }
+        );
+      }
+      data[index] = { ...data[index], ...body };
+      return HttpResponse.json(data[index]);
+    }),
+
+    // DELETE
+    http.delete(`${API_BASE}${path}/:id`, async ({ params }) => {
+      await delay(50);
+      data = data.filter((d) => d.id !== params.id);
+      return new HttpResponse(null, { status: 204 });
+    }),
+  ];
+}
+
+// ─── SSE Streaming Handler ──────────────────────────────────────────────────
+
+export const streamingHandlers = [
+  http.post(`${API_BASE}/chat/stream`, async () => {
+    const encoder = new TextEncoder();
+    const tokens = [
+      "Hello",
+      " there",
+      "!",
+      " How",
+      " can",
+      " I",
+      " help",
+      " you",
+      "?",
+    ];
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        for (const token of tokens) {
+          await delay(50);
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ content: token })}\n\n`)
+          );
+        }
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+
+    return new HttpResponse(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+      },
+    });
+  }),
+];
+
+// ─── Combined Handlers ──────────────────────────────────────────────────────
+
+export const handlers = [
+  ...authHandlers,
+  ...streamingHandlers,
+  // Add more resource handlers:
+  // ...createCrudHandlers('/chats', mockChats),
+  // ...createCrudHandlers('/documents', mockDocs),
+];
+
+export default handlers;

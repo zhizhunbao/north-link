@@ -1,0 +1,273 @@
+/**
+ * AI Chat Slice - Zustand slice for streaming AI responses and AbortController management
+ *
+ * Handles the AI interaction loop:
+ * 1. Send user message → create assistant placeholder
+ * 2. Stream response via SSE (using chat-api)
+ * 3. Update assistant message in real-time
+ * 4. Manage AbortController for cancellation
+ *
+ * @module stores/chat
+ * @source lobe-chat/src/store/chat/slices/aiChat/actions/conversationLifecycle.ts (send + resend)
+ * @source lobe-chat/src/store/chat/slices/aiChat/actions/conversationControl.ts (stop/cancel, 331 lines)
+ * @source lobe-chat/src/store/chat/slices/aiChat/actions/streamingStates.ts (54 lines)
+ * @source lobe-chat/src/store/chat/slices/aiChat/actions/streamingExecutor.ts (streaming runner)
+ * @source lobe-chat/src/store/chat/slices/aiChat/initialState.ts (23 lines)
+ * @reference https://github.com/lobehub/lobe-chat
+ * @template S1-M4-4 frontend/stores/chat/ai-chat-slice.ts
+ */
+
+import { type StateCreator } from 'zustand/vanilla'
+
+import type {
+  ChatMessage,
+  ChatStore,
+  AIChatSliceState,
+  AIChatSliceActions,
+} from './types'
+import { messageMapKey } from './message-slice'
+
+// ============================================================
+// Initial State
+// ============================================================
+
+/**
+ * @source lobe-chat slices/aiChat/initialState.ts
+ */
+export const initialAiChatState: AIChatSliceState = {
+  inputMessage: '',
+  inputFiles: [],
+  streamingMessageIds: [],
+  abortControllerMap: {},
+}
+
+// ============================================================
+// Slice Creator
+// ============================================================
+
+/**
+ * AI Chat slice — orchestrates message sending, streaming, and cancellation.
+ *
+ * Combines patterns from lobe-chat's:
+ * - conversationLifecycle.ts (sendMessage / resendMessage)
+ * - conversationControl.ts (stopGenerateMessage / cancelSendMessage)
+ * - streamingExecutor.ts (SSE streaming runner)
+ * - streamingStates.ts (loading state management)
+ */
+export const createAiChatSlice: StateCreator<
+  ChatStore,
+  [['zustand/devtools', never]],
+  [],
+  AIChatSliceActions
+> = (set, get) => ({
+  /**
+   * Send a new message and stream the AI response.
+   *
+   * Flow:
+   * 1. Create user message via message slice
+   * 2. Create assistant placeholder
+   * 3. Start SSE stream with AbortController
+   * 4. Update assistant message content in real-time
+   * 5. Handle completion / error / cancellation
+   *
+   * @source lobe-chat conversationLifecycle.ts — sendMessage
+   */
+  sendMessage: async (message) => {
+    const {
+      addUserMessage,
+      activeTopicId,
+      internal_dispatchMessage,
+      internal_toggleStreaming,
+    } = get()
+
+    if (!message.trim()) return
+
+    // Step 1: Create user message
+    await addUserMessage({ message })
+
+    // Step 2: Create assistant placeholder
+    const assistantId = crypto.randomUUID()
+    internal_dispatchMessage({
+      type: 'createMessage',
+      id: assistantId,
+      value: {
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      } as Omit<ChatMessage, 'id'>,
+    })
+
+    // Step 3: Start streaming
+    internal_toggleStreaming(assistantId, true)
+    const abortController = new AbortController()
+
+    // Store the AbortController for cancellation
+    set(
+      {
+        abortControllerMap: {
+          ...get().abortControllerMap,
+          [assistantId]: abortController,
+        },
+      },
+      false,
+      'sendMessage/registerAbort'
+    )
+
+    try {
+      // Step 4: Build messages payload
+      const key = messageMapKey({ topicId: activeTopicId })
+      const allMessages = get().messagesMap[key] || []
+
+      const messagesPayload = allMessages
+        .filter((m) => m.id !== assistantId) // exclude the placeholder
+        .map((m) => ({ role: m.role, content: m.content }))
+
+      // Step 5: Stream via API — integrate with chat-api.ts.template
+      // This is where you plug in your API client
+      //
+      // import { chatApi } from '../features/chat/api/chat-api'
+      //
+      // await chatApi.streamMessage(
+      //   activeTopicId || 'default',
+      //   messagesPayload,
+      //   {
+      //     onToken: (token) => {
+      //       internal_dispatchMessage({
+      //         type: 'updateMessage',
+      //         id: assistantId,
+      //         value: {
+      //           content: (get().messagesMap[key]?.find(m => m.id === assistantId)?.content || '') + token,
+      //         },
+      //       })
+      //     },
+      //     onDone: () => {
+      //       internal_toggleStreaming(assistantId, false)
+      //     },
+      //     onError: (error) => {
+      //       internal_dispatchMessage({
+      //         type: 'updateMessage',
+      //         id: assistantId,
+      //         value: {
+      //           content: `Error: ${error.message}`,
+      //           metadata: { error: true },
+      //         },
+      //       })
+      //       internal_toggleStreaming(assistantId, false)
+      //     },
+      //   },
+      //   abortController.signal
+      // )
+    } catch (err) {
+      // Handle abort (user cancellation)
+      if ((err as Error).name === 'AbortError') {
+        // Cancelled — keep partial content
+      } else {
+        console.error('[sendMessage] Error:', err)
+        internal_dispatchMessage({
+          type: 'updateMessage',
+          id: assistantId,
+          value: {
+            content: `Error: ${(err as Error).message}`,
+          },
+        })
+      }
+    } finally {
+      internal_toggleStreaming(assistantId, false)
+
+      // Clean up AbortController
+      const { [assistantId]: _, ...rest } = get().abortControllerMap
+      set({ abortControllerMap: rest }, false, 'sendMessage/cleanupAbort')
+
+      // Auto-save to topic if this is a new conversation
+      if (!activeTopicId) {
+        const key = messageMapKey({})
+        const msgs = get().messagesMap[key] || []
+        if (msgs.length >= 2) {
+          await get().saveToTopic()
+        }
+      }
+    }
+  },
+
+  /**
+   * Resend (regenerate) a specific assistant message.
+   *
+   * Deletes the existing assistant message and re-sends the
+   * preceding user message through the streaming pipeline.
+   *
+   * @source lobe-chat conversationLifecycle.ts — resendMessage
+   */
+  resendMessage: async (id) => {
+    const { activeTopicId, deleteMessage, sendMessage } = get()
+    const key = messageMapKey({ topicId: activeTopicId })
+    const messages = get().messagesMap[key] || []
+
+    // Find the message to resend
+    const targetMsg = messages.find((m) => m.id === id)
+    if (!targetMsg || targetMsg.role !== 'assistant') return
+
+    // Find the preceding user message
+    const msgIndex = messages.findIndex((m) => m.id === id)
+    const userMsg = msgIndex > 0 ? messages[msgIndex - 1] : null
+
+    if (!userMsg || userMsg.role !== 'user') return
+
+    // Delete the old assistant message
+    await deleteMessage(id)
+
+    // Re-send the user message through the pipeline
+    await sendMessage(userMsg.content)
+  },
+
+  /**
+   * Stop/cancel the current streaming generation.
+   *
+   * Aborts all active AbortControllers and marks streaming as complete.
+   *
+   * @source lobe-chat conversationControl.ts lines 33-46 — stopGenerateMessage
+   */
+  stopGenerateMessage: () => {
+    const { abortControllerMap, streamingMessageIds } = get()
+
+    // Abort all active streams
+    for (const [id, controller] of Object.entries(abortControllerMap)) {
+      controller.abort()
+    }
+
+    // Clear all streaming states
+    set(
+      {
+        streamingMessageIds: [],
+        abortControllerMap: {},
+      },
+      false,
+      'stopGenerateMessage'
+    )
+  },
+
+  /**
+   * Toggle streaming state for a message.
+   *
+   * @source lobe-chat streamingStates.ts lines 25-47
+   */
+  internal_toggleStreaming: (id, streaming) => {
+    const current = get().streamingMessageIds
+
+    if (streaming) {
+      if (!current.includes(id)) {
+        set(
+          { streamingMessageIds: [...current, id] },
+          false,
+          'toggleStreaming/start'
+        )
+      }
+    } else {
+      set(
+        { streamingMessageIds: current.filter((i) => i !== id) },
+        false,
+        'toggleStreaming/end'
+      )
+    }
+  },
+})

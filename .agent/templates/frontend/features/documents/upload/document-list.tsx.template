@@ -1,0 +1,290 @@
+/**
+ * DocumentList - Table view of uploaded documents with status, file type icons, and timestamps
+ *
+ * Displays all documents in a knowledge base with processing status badges,
+ * file type-specific icons, size formatting, and relative time display.
+ * Includes loading spinner, error state, and empty state.
+ *
+ * @module features/documents/upload
+ * @source rag-web-ui/frontend/src/components/knowledge-base/document-list.tsx (full 168-line component)
+ * @reference https://github.com/xyb/rag-web-ui
+ * @template S1-M2-3 frontend/features/documents/upload/document-list.tsx
+ */
+
+import React, { useEffect, useState, useCallback } from 'react'
+import { formatDistanceToNow } from 'date-fns'
+import {
+  FileText,
+  File,
+  FileType2,
+  Loader2,
+  AlertCircle,
+  Trash2,
+} from 'lucide-react'
+import { Badge } from '{{ALIAS}}/shared/components/ui/badge'
+import { Button } from '{{ALIAS}}/shared/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '{{ALIAS}}/shared/components/ui/table'
+import type { Document } from './types'
+
+// ============================================================
+// File Icon Helper
+// ============================================================
+
+interface FileIconProps {
+  fileName: string
+  contentType: string
+  className?: string
+}
+
+/** Map content type / extension to Lucide icon + color */
+function DocumentFileIcon({ fileName, contentType, className = 'h-5 w-5' }: FileIconProps) {
+  const ext = fileName.split('.').pop()?.toLowerCase() || ''
+  const ct = contentType.toLowerCase()
+
+  if (ct.includes('pdf') || ext === 'pdf') {
+    return <FileText className={`${className} text-red-500`} />
+  }
+  if (ct.includes('doc') || ext === 'docx' || ext === 'doc') {
+    return <FileType2 className={`${className} text-blue-500`} />
+  }
+  if (ct.includes('markdown') || ext === 'md') {
+    return <FileText className={`${className} text-purple-500`} />
+  }
+  if (ct.includes('text') || ext === 'txt') {
+    return <FileText className={`${className} text-gray-500`} />
+  }
+  return <File className={`${className} text-muted-foreground`} />
+}
+
+// ============================================================
+// Status Badge Helper
+// ============================================================
+
+function ProcessingStatusBadge({ status }: { status: string }) {
+  const config: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
+    completed: { variant: 'secondary', label: 'Ready' },
+    failed: { variant: 'destructive', label: 'Failed' },
+    processing: { variant: 'default', label: 'Processing' },
+    pending: { variant: 'outline', label: 'Pending' },
+  }
+
+  const { variant, label } = config[status] || config.pending
+  return <Badge variant={variant}>{label}</Badge>
+}
+
+// ============================================================
+// Format Helpers
+// ============================================================
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`
+}
+
+// ============================================================
+// Component Props
+// ============================================================
+
+interface DocumentListProps {
+  /** Knowledge base ID to fetch documents for */
+  knowledgeBaseId: number | string
+
+  /** API base URL */
+  apiBaseUrl?: string
+
+  /** Custom fetch function (for auth headers) */
+  fetchFn?: (url: string, init?: RequestInit) => Promise<Response>
+
+  /** Callback when a document is deleted */
+  onDelete?: (documentId: number) => void
+
+  /** Callback when a document row is clicked */
+  onDocumentClick?: (document: Document) => void
+}
+
+// ============================================================
+// Main Component
+// ============================================================
+
+/**
+ * Document list table with status tracking and file type icons.
+ *
+ * @source rag-web-ui document-list.tsx — full component
+ */
+export function DocumentList({
+  knowledgeBaseId,
+  apiBaseUrl = '{{API_BASE_URL}}',
+  fetchFn,
+  onDelete,
+  onDocumentClick,
+}: DocumentListProps) {
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // API fetch helper
+  const apiFetch = useCallback(
+    async (url: string, options?: RequestInit) => {
+      const fn = fetchFn || fetch
+      const res = await fn(`${apiBaseUrl}${url}`, options)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || err.message || `HTTP ${res.status}`)
+      }
+      return res.json()
+    },
+    [apiBaseUrl, fetchFn]
+  )
+
+  // Fetch documents on mount
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const data = await apiFetch(`/knowledge-base/${knowledgeBaseId}`)
+        setDocuments(data.documents || [])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch documents')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDocuments()
+  }, [knowledgeBaseId, apiFetch])
+
+  // Handle document deletion
+  const handleDelete = async (docId: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await apiFetch(`/knowledge-base/${knowledgeBaseId}/documents/${docId}`, {
+        method: 'DELETE',
+      })
+      setDocuments((prev) => prev.filter((d) => d.id !== docId))
+      onDelete?.(docId)
+    } catch (err) {
+      console.error('Failed to delete document:', err)
+    }
+  }
+
+  // --------------------------------------------------------
+  // Loading State
+  // --------------------------------------------------------
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-12">
+        <div className="space-y-3 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-sm text-muted-foreground">Loading documents...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // --------------------------------------------------------
+  // Error State
+  // --------------------------------------------------------
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center p-12">
+        <div className="flex items-center gap-2 text-destructive">
+          <AlertCircle className="h-5 w-5" />
+          <p className="text-sm">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // --------------------------------------------------------
+  // Empty State
+  // --------------------------------------------------------
+
+  if (documents.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+        <div className="flex flex-col items-center max-w-[420px] text-center space-y-6">
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+            <FileText className="w-10 h-10 text-muted-foreground" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold">No documents yet</h3>
+            <p className="text-muted-foreground">
+              Upload your first document to start building your knowledge base.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // --------------------------------------------------------
+  // Table View
+  // --------------------------------------------------------
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead className="w-[100px]">Size</TableHead>
+          <TableHead className="w-[140px]">Created</TableHead>
+          <TableHead className="w-[100px]">Status</TableHead>
+          {onDelete && <TableHead className="w-[60px]" />}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {documents.map((doc) => (
+          <TableRow
+            key={doc.id}
+            className={onDocumentClick ? 'cursor-pointer hover:bg-muted/50' : ''}
+            onClick={() => onDocumentClick?.(doc)}
+          >
+            <TableCell className="font-medium">
+              <div className="flex items-center gap-2">
+                <DocumentFileIcon
+                  fileName={doc.file_name}
+                  contentType={doc.content_type}
+                />
+                <span className="truncate max-w-[300px]">{doc.file_name}</span>
+              </div>
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {formatFileSize(doc.file_size)}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}
+            </TableCell>
+            <TableCell>
+              {doc.processing_tasks.length > 0 && (
+                <ProcessingStatusBadge status={doc.processing_tasks[0].status} />
+              )}
+            </TableCell>
+            {onDelete && (
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => handleDelete(doc.id, e)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            )}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
+
+export default DocumentList

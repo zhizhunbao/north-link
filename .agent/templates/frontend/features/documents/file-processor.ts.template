@@ -1,0 +1,390 @@
+/**
+ * File Processor — Frontend file preprocessing for RAG upload
+ *
+ * Handles client-side text extraction and chunking before upload:
+ * - PDF text extraction (using pdf.js)
+ * - Plain text / markdown / code parsing
+ * - Recursive character text splitting with overlap
+ * - File type detection and validation
+ * - Size limit enforcement
+ *
+ * This runs in the browser to provide immediate previews and reduce
+ * server load. The server should still re-process for production indexing.
+ *
+ * @module features/documents/file-processor
+ * @source chatbot-ui/components/chat/chat-retrieval-settings.tsx (file handling patterns)
+ * @source lobe-chat/src/services/upload.ts (upload + processing flow)
+ * @reference https://github.com/mckaywrigley/chatbot-ui
+ * @reference https://github.com/lobehub/lobe-chat
+ * @template S1-M6-F2
+ */
+
+// ==================== Types ====================
+
+/** Supported file types for processing */
+export type SupportedFileType =
+  | 'pdf'
+  | 'txt'
+  | 'md'
+  | 'csv'
+  | 'json'
+  | 'html'
+  | 'py'
+  | 'ts'
+  | 'tsx'
+  | 'js'
+  | 'jsx';
+
+/** A chunk of text extracted from a file */
+export interface TextChunk {
+  /** Chunk content */
+  content: string;
+  /** Zero-based index of this chunk */
+  index: number;
+  /** Character offset in the original text */
+  startOffset: number;
+  /** Character offset end in the original text */
+  endOffset: number;
+  /** Source metadata */
+  metadata: {
+    filename: string;
+    fileType: SupportedFileType;
+    pageNumber?: number;
+    totalChunks: number;
+  };
+}
+
+/** Result of processing a file */
+export interface ProcessedFile {
+  /** Original filename */
+  filename: string;
+  /** Detected file type */
+  fileType: SupportedFileType;
+  /** Full extracted text */
+  fullText: string;
+  /** Text chunks for RAG indexing */
+  chunks: TextChunk[];
+  /** File size in bytes */
+  sizeBytes: number;
+  /** Character count of extracted text */
+  charCount: number;
+  /** Word count estimate */
+  wordCount: number;
+  /** Token count estimate (chars / 4) */
+  tokenEstimate: number;
+}
+
+/** Chunking configuration */
+export interface ChunkConfig {
+  /** Maximum characters per chunk (default: 1000) */
+  chunkSize: number;
+  /** Overlap characters between chunks (default: 200) */
+  chunkOverlap: number;
+  /** Separators for splitting, in priority order */
+  separators: string[];
+}
+
+/** File processing options */
+export interface ProcessorConfig {
+  /** Maximum file size in bytes (default: 50MB) */
+  maxFileSizeBytes: number;
+  /** Allowed file extensions */
+  allowedTypes: SupportedFileType[];
+  /** Chunking configuration */
+  chunking: ChunkConfig;
+}
+
+// ==================== Constants ====================
+
+const DEFAULT_CHUNK_CONFIG: ChunkConfig = {
+  chunkSize: 1000,
+  chunkOverlap: 200,
+  separators: ['\n\n', '\n', '. ', ' ', ''],
+};
+
+const DEFAULT_PROCESSOR_CONFIG: ProcessorConfig = {
+  maxFileSizeBytes: 50 * 1024 * 1024, // 50MB
+  allowedTypes: ['pdf', 'txt', 'md', 'csv', 'json', 'html', 'py', 'ts', 'tsx', 'js', 'jsx'],
+  chunking: DEFAULT_CHUNK_CONFIG,
+};
+
+/** Extension to SupportedFileType mapping */
+const EXTENSION_MAP: Record<string, SupportedFileType> = {
+  '.pdf': 'pdf',
+  '.txt': 'txt',
+  '.md': 'md',
+  '.markdown': 'md',
+  '.csv': 'csv',
+  '.json': 'json',
+  '.html': 'html',
+  '.htm': 'html',
+  '.py': 'py',
+  '.ts': 'ts',
+  '.tsx': 'tsx',
+  '.js': 'js',
+  '.jsx': 'jsx',
+};
+
+// ==================== Text Extraction ====================
+
+/**
+ * Extract text from a File object based on its type.
+ */
+async function extractText(file: File, fileType: SupportedFileType): Promise<string> {
+  if (fileType === 'pdf') {
+    return extractPdfText(file);
+  }
+  // All other types are read as plain text
+  return file.text();
+}
+
+/**
+ * Extract text from PDF using pdf.js (loaded dynamically).
+ *
+ * Note: Requires pdf.js to be available. In a real project, install:
+ * npm install pdfjs-dist
+ * and configure the worker path.
+ */
+async function extractPdfText(file: File): Promise<string> {
+  try {
+    // Dynamic import to avoid bundling pdf.js for non-PDF use cases
+    const pdfjsLib = await import('pdfjs-dist');
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    const pages: string[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: { str?: string }) => item.str || '')
+        .join(' ');
+      pages.push(pageText);
+    }
+
+    return pages.join('\n\n');
+  } catch {
+    // Fallback: return empty string if pdf.js is not available
+    console.warn('[file-processor] PDF extraction failed. Is pdfjs-dist installed?');
+    return '';
+  }
+}
+
+// ==================== Recursive Text Splitter ====================
+
+/**
+ * Recursive character text splitter.
+ *
+ * Splits text using a hierarchy of separators, trying the most
+ * semantically meaningful separator first (paragraphs → lines → sentences → words).
+ *
+ * @source Inspired by LangChain's RecursiveCharacterTextSplitter
+ * @source azure-search-openai-demo/prepdocslib/textsplitter.py (token-aware splitting)
+ */
+function splitTextRecursively(
+  text: string,
+  config: ChunkConfig = DEFAULT_CHUNK_CONFIG,
+): string[] {
+  const { chunkSize, chunkOverlap, separators } = config;
+
+  if (text.length <= chunkSize) {
+    return [text];
+  }
+
+  // Find the best separator that exists in the text
+  let bestSep = '';
+  for (const sep of separators) {
+    if (sep === '' || text.includes(sep)) {
+      bestSep = sep;
+      break;
+    }
+  }
+
+  // Split by best separator
+  const splits = bestSep ? text.split(bestSep) : [text];
+  const chunks: string[] = [];
+  let currentChunk = '';
+
+  for (const split of splits) {
+    const piece = currentChunk ? currentChunk + bestSep + split : split;
+
+    if (piece.length <= chunkSize) {
+      currentChunk = piece;
+    } else {
+      // Current chunk is full
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+      }
+
+      // If single split exceeds chunk size, recurse with next separator
+      if (split.length > chunkSize) {
+        const remainingSeps = separators.slice(separators.indexOf(bestSep) + 1);
+        if (remainingSeps.length > 0) {
+          const subChunks = splitTextRecursively(split, {
+            chunkSize,
+            chunkOverlap,
+            separators: remainingSeps,
+          });
+          chunks.push(...subChunks);
+          currentChunk = '';
+        } else {
+          // Last resort: force-split by character count
+          for (let i = 0; i < split.length; i += chunkSize - chunkOverlap) {
+            chunks.push(split.slice(i, i + chunkSize).trim());
+          }
+          currentChunk = '';
+        }
+      } else {
+        currentChunk = split;
+      }
+    }
+  }
+
+  // Don't forget the last chunk
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  // Apply overlap by extending chunks
+  if (chunkOverlap > 0 && chunks.length > 1) {
+    return applyOverlap(chunks, chunkOverlap);
+  }
+
+  return chunks.filter((c) => c.length > 0);
+}
+
+/**
+ * Apply overlap between consecutive chunks.
+ * Prepends the tail of the previous chunk to the next chunk.
+ */
+function applyOverlap(chunks: string[], overlap: number): string[] {
+  if (chunks.length <= 1) return chunks;
+
+  const result: string[] = [chunks[0]];
+  for (let i = 1; i < chunks.length; i++) {
+    const prevChunk = chunks[i - 1];
+    const overlapText = prevChunk.slice(-overlap);
+    result.push(overlapText + chunks[i]);
+  }
+  return result;
+}
+
+// ==================== File Type Detection ====================
+
+/**
+ * Detect file type from filename extension.
+ */
+export function detectFileType(filename: string): SupportedFileType | null {
+  const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+  return EXTENSION_MAP[ext] || null;
+}
+
+/**
+ * Validate that a file is processable.
+ */
+export function validateFile(
+  file: File,
+  config: ProcessorConfig = DEFAULT_PROCESSOR_CONFIG,
+): { valid: boolean; error?: string } {
+  // Check size
+  if (file.size > config.maxFileSizeBytes) {
+    const maxMB = Math.round(config.maxFileSizeBytes / 1024 / 1024);
+    return { valid: false, error: `File exceeds ${maxMB}MB limit` };
+  }
+
+  // Check type
+  const fileType = detectFileType(file.name);
+  if (!fileType) {
+    return { valid: false, error: `Unsupported file type: ${file.name}` };
+  }
+  if (!config.allowedTypes.includes(fileType)) {
+    return { valid: false, error: `File type "${fileType}" is not allowed` };
+  }
+
+  return { valid: true };
+}
+
+// ==================== Main Processing Function ====================
+
+/**
+ * Process a file: extract text, split into chunks, compute metadata.
+ *
+ * @example
+ * ```ts
+ * const result = await processFile(file, {
+ *   chunking: { chunkSize: 500, chunkOverlap: 50, separators: ['\n\n', '\n', ' '] },
+ * });
+ * console.log(`${result.chunks.length} chunks, ~${result.tokenEstimate} tokens`);
+ * ```
+ */
+export async function processFile(
+  file: File,
+  config: Partial<ProcessorConfig> = {},
+): Promise<ProcessedFile> {
+  const mergedConfig = {
+    ...DEFAULT_PROCESSOR_CONFIG,
+    ...config,
+    chunking: { ...DEFAULT_CHUNK_CONFIG, ...config.chunking },
+  };
+
+  // Validate
+  const validation = validateFile(file, mergedConfig);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  const fileType = detectFileType(file.name)!;
+
+  // Extract text
+  const fullText = await extractText(file, fileType);
+
+  // Split into chunks
+  const rawChunks = splitTextRecursively(fullText, mergedConfig.chunking);
+
+  // Build TextChunk objects with metadata
+  let currentOffset = 0;
+  const chunks: TextChunk[] = rawChunks.map((content, index) => {
+    const startOffset = fullText.indexOf(content, currentOffset);
+    const endOffset = startOffset + content.length;
+    currentOffset = startOffset + 1; // Advance to avoid re-matching
+
+    return {
+      content,
+      index,
+      startOffset: Math.max(0, startOffset),
+      endOffset,
+      metadata: {
+        filename: file.name,
+        fileType,
+        totalChunks: rawChunks.length,
+      },
+    };
+  });
+
+  // Compute statistics
+  const charCount = fullText.length;
+  const wordCount = fullText.split(/\s+/).filter(Boolean).length;
+  const tokenEstimate = Math.ceil(charCount / 4); // rough estimate
+
+  return {
+    filename: file.name,
+    fileType,
+    fullText,
+    chunks,
+    sizeBytes: file.size,
+    charCount,
+    wordCount,
+    tokenEstimate,
+  };
+}
+
+/**
+ * Process multiple files in parallel.
+ */
+export async function processFiles(
+  files: File[],
+  config: Partial<ProcessorConfig> = {},
+): Promise<ProcessedFile[]> {
+  return Promise.all(files.map((file) => processFile(file, config)));
+}

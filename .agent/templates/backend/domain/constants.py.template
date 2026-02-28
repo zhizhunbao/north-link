@@ -1,0 +1,10 @@
+from enum import StrEnum
+
+class ErrorCode(StrEnum):
+    """
+    A11. 常量与错误码.
+    出处: fastapi-best-practices
+    """
+    NOT_FOUND = "{{FEATURE_NAME}}_NOT_FOUND"
+    ALREADY_EXISTS = "{{FEATURE_NAME}}_ALREADY_EXISTS"
+    PERMISSION_DENIED = "{{FEATURE_NAME}}_PERMISSION_DENIED"

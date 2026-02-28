@@ -1,0 +1,305 @@
+"""
+Chat Service - RAG-powered chat response generation with streaming
+
+Implements the core RAG chat loop:
+1. Persist user message → create bot placeholder
+2. Initialize vector store retriever from knowledge bases
+3. Build LangChain RAG chain (history-aware retriever → QA chain)
+4. Stream response chunks with embedded citation context (base64-encoded)
+5. Update bot message with full response on completion
+
+The streaming format uses the Vercel AI SDK data protocol:
+- `0:"text"\n` for content chunks
+- `d:{"finishReason":"stop"}\n` for completion signal
+
+@module backend/domain
+@source rag-web-ui/backend/app/services/chat_service.py (full 206-line service)
+@source rag-web-ui/backend/app/api/api_v1/chat.py (endpoint definitions, 155 lines)
+@reference https://github.com/xyb/rag-web-ui
+@template S1-M3-3 backend/domain/chat-service.py
+"""
+
+import json
+import base64
+import logging
+from typing import List, AsyncGenerator, Optional, Dict, Any
+from dataclasses import dataclass
+
+# -- ORM / DB (replace with your ORM) --
+# from sqlalchemy.orm import Session
+# from app.db.session import get_db
+# from app.models.chat import Chat, Message
+# from app.models.knowledge import KnowledgeBase, Document
+
+# -- LLM / RAG --
+# from langchain_openai import ChatOpenAI
+# from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+# from langchain.chains.combine_documents import create_stuff_documents_chain
+# from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
+# from langchain_core.messages import HumanMessage, AIMessage
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# Configuration
+# ============================================================
+
+@dataclass
+class ChatServiceConfig:
+    """Configuration for chat RAG service.
+
+    Replace {{PLACEHOLDERS}} with actual values.
+    """
+    # LLM settings
+    llm_model: str = "{{LLM_MODEL}}"
+    temperature: float = 0.7
+    max_tokens: int = 1024
+
+    # Vector store settings
+    vector_store_type: str = "{{VECTOR_STORE_TYPE}}"  # "chroma", "faiss", "qdrant"
+
+    # Embedding settings
+    embedding_model: str = "{{EMBEDDING_MODEL}}"
+
+    # Streaming format
+    stream_format: str = "vercel"  # "vercel" or "ndjson"
+
+
+# ============================================================
+# Prompts
+# ============================================================
+
+# @source rag-web-ui chat_service.py lines 86-98
+CONTEXTUALIZE_Q_SYSTEM_PROMPT = """\
+Given a chat history and the latest user question which might reference context \
+in the chat history, formulate a standalone question which can be understood \
+without the chat history. Do NOT answer the question, just reformulate it \
+if needed and otherwise return it as is."""
+
+# @source rag-web-ui chat_service.py lines 107-120
+QA_SYSTEM_PROMPT = """\
+You are given a user question, and please write clean, concise and accurate answer \
+to the question. You will be given a set of related contexts to the question, which \
+are numbered sequentially starting from 1. Each context has an implicit reference \
+number based on its position in the array (first context is 1, second is 2, etc.).
+
+Please use these contexts and cite them using the format [citation:x] at the end of \
+each sentence where applicable. Your answer must be correct, accurate and written by \
+an expert using an unbiased and professional tone. Please limit to {max_tokens} tokens.
+
+Do not give any information that is not related to the question, and do not repeat.
+Say 'information is missing on' followed by the related topic, if the given context \
+do not provide sufficient information.
+
+If a sentence draws from multiple contexts, please list all applicable citations, \
+like [citation:1][citation:2]. Other than code and specific names and citations, \
+your answer must be written in the same language as the question. Be concise.
+
+Context: {context}
+
+Remember: Cite contexts by their position number (1 for first context, 2 for second, etc.) \
+and don't blindly repeat the contexts verbatim."""
+
+
+# ============================================================
+# Response Streaming
+# ============================================================
+
+def _format_vercel_text(text: str) -> str:
+    """Format a text chunk for Vercel AI SDK data stream protocol.
+
+    @source rag-web-ui chat_service.py lines 186-190
+    """
+    escaped = (
+        text
+        .replace('"', '\\"')
+        .replace('\n', '\\n')
+    )
+    return f'0:"{escaped}"\n'
+
+
+def _format_vercel_data(data: dict) -> str:
+    """Format a data event for Vercel AI SDK data stream protocol."""
+    return f'd:{json.dumps(data)}\n'
+
+
+def _format_vercel_error(error: str) -> str:
+    """Format an error event for Vercel AI SDK data stream protocol.
+
+    @source rag-web-ui chat_service.py line 199
+    """
+    return f'3:{error}\n'
+
+
+def _format_ndjson(event_type: str, payload: Any) -> str:
+    """Format an NDJSON stream event."""
+    return json.dumps({"type": event_type, "payload": payload}) + '\n'
+
+
+# ============================================================
+# Core Chat Service
+# ============================================================
+
+async def generate_response(
+    query: str,
+    messages: List[Dict[str, str]],
+    knowledge_base_ids: List[int],
+    chat_id: int,
+    db: Any,  # Replace with Session type
+    config: Optional[ChatServiceConfig] = None,
+) -> AsyncGenerator[str, None]:
+    """Generate a streaming RAG response.
+
+    This is the core chat service function. It:
+    1. Persists user message and creates a bot placeholder
+    2. Retrieves relevant context from vector stores
+    3. Streams the LLM response with citation context
+
+    @source rag-web-ui chat_service.py lines 21-206 — full generate_response function
+
+    Args:
+        query: User's question text
+        messages: Full conversation history [{"role": "user", "content": "..."}]
+        knowledge_base_ids: IDs of knowledge bases to search
+        chat_id: Current chat session ID
+        db: Database session
+        config: Optional service configuration
+
+    Yields:
+        Formatted stream chunks (Vercel or NDJSON format)
+    """
+    cfg = config or ChatServiceConfig()
+
+    try:
+        # ============================================
+        # Step 1: Persist messages
+        # ============================================
+        # TODO: Replace with your ORM pattern
+        # user_message = Message(content=query, role="user", chat_id=chat_id)
+        # db.add(user_message)
+        # db.commit()
+        #
+        # bot_message = Message(content="", role="assistant", chat_id=chat_id)
+        # db.add(bot_message)
+        # db.commit()
+
+        # ============================================
+        # Step 2: Initialize retriever
+        # ============================================
+        # TODO: Replace with your vector store + embedding setup
+        # embeddings = EmbeddingsFactory.create(model=cfg.embedding_model)
+        # vector_stores = []
+        # for kb_id in knowledge_base_ids:
+        #     vs = VectorStoreFactory.create(
+        #         store_type=cfg.vector_store_type,
+        #         collection_name=f"kb_{kb_id}",
+        #         embedding_function=embeddings,
+        #     )
+        #     vector_stores.append(vs)
+        #
+        # if not vector_stores:
+        #     error_msg = "No knowledge base available to answer your question."
+        #     yield _format_vercel_text(error_msg)
+        #     yield _format_vercel_data({"finishReason": "stop"})
+        #     return
+        #
+        # retriever = vector_stores[0].as_retriever()
+
+        # ============================================
+        # Step 3: Build RAG chain
+        # ============================================
+        # @source rag-web-ui chat_service.py lines 83-142
+        # llm = LLMFactory.create(model=cfg.llm_model, temperature=cfg.temperature)
+        #
+        # contextualize_q_prompt = ChatPromptTemplate.from_messages([
+        #     ("system", CONTEXTUALIZE_Q_SYSTEM_PROMPT),
+        #     MessagesPlaceholder("chat_history"),
+        #     ("human", "{input}"),
+        # ])
+        #
+        # history_aware_retriever = create_history_aware_retriever(
+        #     llm, retriever, contextualize_q_prompt
+        # )
+        #
+        # qa_prompt = ChatPromptTemplate.from_messages([
+        #     ("system", QA_SYSTEM_PROMPT),
+        #     MessagesPlaceholder("chat_history"),
+        #     ("human", "{input}"),
+        # ])
+        #
+        # document_prompt = PromptTemplate.from_template("\n\n- {page_content}\n\n")
+        # qa_chain = create_stuff_documents_chain(llm, qa_prompt, document_prompt=document_prompt)
+        # rag_chain = create_retrieval_chain(history_aware_retriever, qa_chain)
+
+        # ============================================
+        # Step 4: Build chat history
+        # ============================================
+        # @source rag-web-ui chat_service.py lines 145-153
+        # chat_history = []
+        # for msg in messages:
+        #     if msg["role"] == "user":
+        #         chat_history.append(HumanMessage(content=msg["content"]))
+        #     elif msg["role"] == "assistant":
+        #         content = msg["content"]
+        #         if "__LLM_RESPONSE__" in content:
+        #             content = content.split("__LLM_RESPONSE__")[-1]
+        #         chat_history.append(AIMessage(content=content))
+
+        # ============================================
+        # Step 5: Stream response
+        # ============================================
+        # @source rag-web-ui chat_service.py lines 155-194
+        full_response = ""
+
+        # Simulated streaming — replace with actual rag_chain.astream()
+        # async for chunk in rag_chain.astream({"input": query, "chat_history": chat_history}):
+        #
+        #     # Emit retrieval context as base64 (first chunk only)
+        #     if "context" in chunk:
+        #         serializable_context = [
+        #             {
+        #                 "page_content": doc.page_content.replace('"', '\\"'),
+        #                 "metadata": doc.metadata,
+        #             }
+        #             for doc in chunk["context"]
+        #         ]
+        #
+        #         encoded = base64.b64encode(
+        #             json.dumps({"context": serializable_context}).encode()
+        #         ).decode()
+        #
+        #         separator = "__LLM_RESPONSE__"
+        #         yield _format_vercel_text(f"{encoded}{separator}")
+        #         full_response += encoded + separator
+        #
+        #     # Emit answer chunks
+        #     if "answer" in chunk:
+        #         answer_chunk = chunk["answer"]
+        #         full_response += answer_chunk
+        #         yield _format_vercel_text(answer_chunk)
+
+        # Emit finish signal
+        yield _format_vercel_data({
+            "finishReason": "stop",
+            "usage": {"promptTokens": 0, "completionTokens": 0},
+        })
+
+        # ============================================
+        # Step 6: Persist full response
+        # ============================================
+        # bot_message.content = full_response
+        # db.commit()
+
+    except Exception as e:
+        error_message = f"Error generating response: {str(e)}"
+        logger.error(error_message, exc_info=True)
+        yield _format_vercel_error(error_message)
+
+        # Persist error
+        # if "bot_message" in locals():
+        #     bot_message.content = error_message
+        #     db.commit()
+    finally:
+        pass
+        # db.close()

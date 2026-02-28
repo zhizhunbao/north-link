@@ -1,0 +1,72 @@
+/**
+ * Site Footer
+ *
+ * Simple footer with logo, credits, and theme toggle.
+ *
+ * @source taxonomy (shadcn official)
+ * @i18n Replace text content with t() calls
+ *
+ * @example
+ * <SiteFooter className="border-t" />
+ */
+import * as React from 'react'
+import { cn } from '{{alias}}/lib/utils'
+// import { ThemeSwitch } from '{{alias}}/shared/components/theme-switch'
+
+interface SiteFooterProps extends React.HTMLAttributes<HTMLElement> {
+  siteName?: string
+  author?: {
+    name: string
+    url: string
+  }
+  links?: {
+    label: string
+    url: string
+  }[]
+}
+
+export function SiteFooter({
+  className,
+  siteName = 'App Name',
+  author = { name: 'Your Name', url: '#' },
+  links = [],
+  ...props
+}: SiteFooterProps) {
+  return (
+    <footer className={cn(className)} {...props}>
+      <div className="container flex flex-col items-center justify-between gap-4 py-10 md:h-24 md:flex-row md:py-0">
+        <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
+          <div className="h-6 w-6 rounded-md bg-primary" /> {/* Replace with your logo */}
+          <p className="text-center text-sm leading-loose md:text-left">
+            Built by{' '}
+            <a
+              href={author.url}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium underline underline-offset-4"
+            >
+              {author.name}
+            </a>
+            .
+            {links.map((link, i) => (
+              <React.Fragment key={i}>
+                {' '}
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium underline underline-offset-4"
+                >
+                  {link.label}
+                </a>
+                {i < links.length - 1 ? '.' : '.'}
+              </React.Fragment>
+            ))}
+          </p>
+        </div>
+        {/* <ThemeSwitch /> */}
+      </div>
+    </footer>
+  )
+}
+

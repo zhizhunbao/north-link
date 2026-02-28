@@ -1,0 +1,12 @@
+/**
+ * Supplementary Components
+ *
+ * Barrel exports for common UI components.
+ *
+ * @source shadcn-admin
+ */
+export { ProfileDropdown } from './profile-dropdown'
+export { CommandMenu } from './command-menu'
+export { NavigationProgress } from './navigation-progress'
+export { SignOutDialog } from './sign-out-dialog'
+

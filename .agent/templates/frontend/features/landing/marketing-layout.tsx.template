@@ -1,0 +1,62 @@
+/**
+ * Marketing Layout
+ *
+ * Full-page layout for marketing/landing pages with header and footer.
+ *
+ * @source taxonomy (shadcn official)
+ * @router Adapt Link component for your router
+ * @i18n Replace button text with t() calls
+ *
+ * @example
+ * <MarketingLayout navItems={navItems}>
+ *   <HeroSection ... />
+ *   <FeatureSection ... />
+ * </MarketingLayout>
+ */
+import { Link } from 'react-router-dom' // Change to your router
+import { cn } from '{{alias}}/lib/utils'
+import { buttonVariants } from '{{alias}}/shared/components/ui/button'
+import { MainNav, type NavItem } from './main-nav'
+import { SiteFooter } from './site-footer'
+
+interface MarketingLayoutProps {
+  children: React.ReactNode
+  navItems?: NavItem[]
+  siteName?: string
+  showLoginButton?: boolean
+  loginHref?: string
+}
+
+export function MarketingLayout({
+  children,
+  navItems = [],
+  siteName = 'App Name',
+  showLoginButton = true,
+  loginHref = '/login',
+}: MarketingLayoutProps) {
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="container z-40 bg-background">
+        <div className="flex h-20 items-center justify-between py-6">
+          <MainNav items={navItems} siteName={siteName} />
+          <nav>
+            {showLoginButton && (
+              <Link
+                to={loginHref}
+                className={cn(
+                  buttonVariants({ variant: 'secondary', size: 'sm' }),
+                  'px-4'
+                )}
+              >
+                Login
+              </Link>
+            )}
+          </nav>
+        </div>
+      </header>
+      <main className="flex-1">{children}</main>
+      <SiteFooter siteName={siteName} />
+    </div>
+  )
+}
+

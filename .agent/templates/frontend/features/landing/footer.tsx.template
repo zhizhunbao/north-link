@@ -1,0 +1,95 @@
+/**
+ * Landing Footer - Multi-column footer with logo, link groups, and copyright
+ *
+ * @source shadcn-landing-page/src/components/Footer.tsx
+ * @reference https://github.com/leoMirandaa/shadcn-landing-page
+ * @i18n Replace all text with t() calls
+ *
+ * @example
+ * <Footer />
+ */
+// import { LogoIcon } from "./Icons";
+
+interface FooterLinkGroup {
+  title: string;
+  links: { label: string; href: string }[];
+}
+
+const footerGroups: FooterLinkGroup[] = [
+  {
+    title: "Follow US",
+    links: [
+      { label: "Github", href: "#" },
+      { label: "Twitter", href: "#" },
+      { label: "Dribbble", href: "#" },
+    ],
+  },
+  {
+    title: "Platforms",
+    links: [
+      { label: "Web", href: "#" },
+      { label: "Mobile", href: "#" },
+      { label: "Desktop", href: "#" },
+    ],
+  },
+  {
+    title: "About",
+    links: [
+      { label: "Features", href: "#features" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "FAQ", href: "#faq" },
+    ],
+  },
+  {
+    title: "Community",
+    links: [
+      { label: "Youtube", href: "#" },
+      { label: "Discord", href: "#" },
+      { label: "Twitch", href: "#" },
+    ],
+  },
+];
+
+export const Footer = () => {
+  return (
+    <footer id="footer">
+      <hr className="w-11/12 mx-auto" />
+
+      <section className="container py-20 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-x-12 gap-y-8">
+        <div className="col-span-full xl:col-span-2">
+          <a
+            rel="noreferrer noopener"
+            href="/"
+            className="font-bold text-xl flex"
+          >
+            {/* <LogoIcon /> */}
+            {{APP_NAME}}
+          </a>
+        </div>
+
+        {footerGroups.map((group) => (
+          <div key={group.title} className="flex flex-col gap-2">
+            <h3 className="font-bold text-lg">{group.title}</h3>
+            {group.links.map((link) => (
+              <div key={link.label}>
+                <a
+                  rel="noreferrer noopener"
+                  href={link.href}
+                  className="opacity-60 hover:opacity-100"
+                >
+                  {link.label}
+                </a>
+              </div>
+            ))}
+          </div>
+        ))}
+      </section>
+
+      <section className="container pb-14 text-center">
+        <h3>
+          &copy; {new Date().getFullYear()} {{APP_NAME}}
+        </h3>
+      </section>
+    </footer>
+  );
+};

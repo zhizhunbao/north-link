@@ -1,0 +1,32 @@
+import uuid
+from datetime import datetime
+from pydantic import BaseModel, Field
+
+# --- Base Schemas ---
+
+class {{FeatureName}}Base(BaseModel):
+    """
+    A7. Pydantic 模型 (分层 Schema).
+    出处: full-stack-fastapi-template
+    """
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=255)
+
+# --- Action Schemas ---
+
+class {{FeatureName}}Create({{FeatureName}}Base):
+    pass
+
+class {{FeatureName}}Update({{FeatureName}}Base):
+    title: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+
+# --- Output Schemas ---
+
+class {{FeatureName}}Public({{FeatureName}}Base):
+    id: uuid.UUID
+    created_at: datetime | None = None
+
+class {{FeatureName}}sPublic(BaseModel):
+    data: list[{{FeatureName}}Public]
+    count: int

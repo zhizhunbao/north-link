@@ -1,0 +1,163 @@
+/**
+ * DocumentUploadTypes - Type definitions for multi-step document upload workflow
+ *
+ * Covers the full upload lifecycle: file selection → upload → processing → ready.
+ * Includes types for chunking configuration, preview, and task status polling.
+ *
+ * @module features/documents/upload
+ * @source rag-web-ui/frontend/src/components/knowledge-base/document-upload-steps.tsx (FileStatus, UploadResult, TaskStatus)
+ * @source rag-web-ui/frontend/src/components/knowledge-base/document-list.tsx (Document)
+ * @template S1-M2-1 frontend/features/documents/upload/types.ts
+ */
+
+// ============================================================
+// File Upload Types
+// ============================================================
+
+/** Upload status state machine: pending → uploading → uploaded → processing → completed */
+export type FileUploadStatus =
+  | 'pending'      // Selected, not yet uploaded
+  | 'uploading'    // Upload in progress
+  | 'uploaded'     // Upload complete, awaiting processing
+  | 'processing'   // Backend processing (chunking, embedding)
+  | 'completed'    // Fully processed, ready for RAG
+  | 'error'        // Upload or processing failed
+
+/** File with tracked upload state */
+export interface FileStatus {
+  /** The browser File object */
+  file: File
+
+  /** Current status in the upload pipeline */
+  status: FileUploadStatus
+
+  /** Upload ID returned by backend after successful upload */
+  uploadId?: number
+
+  /** Document ID assigned after processing begins */
+  documentId?: number
+
+  /** Temp file path on backend (for preview before processing) */
+  tempPath?: string
+
+  /** Background task ID for polling */
+  taskId?: number
+
+  /** Error message if upload/processing failed */
+  error?: string
+}
+
+// ============================================================
+// API Response Types
+// ============================================================
+
+/** Response from POST /documents/upload */
+export interface UploadResult {
+  /** Backend upload tracking ID */
+  upload_id?: number
+
+  /** Document ID (if file already exists) */
+  document_id?: number
+
+  /** Original file name */
+  file_name: string
+
+  /** 'exists' if duplicate, 'pending' if new upload */
+  status: 'exists' | 'pending'
+
+  /** User-facing message */
+  message?: string
+
+  /** Whether to skip chunking/embedding (e.g., duplicate) */
+  skip_processing: boolean
+
+  /** Temp path for preview */
+  temp_path?: string
+}
+
+/** Response from POST /documents/process */
+export interface ProcessingTaskResponse {
+  tasks: Array<{
+    upload_id: number
+    task_id: number
+  }>
+}
+
+/** Single task status from GET /documents/tasks */
+export interface TaskStatus {
+  document_id: number | null
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  error_message?: string | null
+  upload_id?: number
+  file_name?: string
+}
+
+/** Map of task_id → TaskStatus */
+export type TaskStatusMap = Record<number, TaskStatus>
+
+// ============================================================
+// Chunking / Preview Types
+// ============================================================
+
+/** A single text chunk from document splitting */
+export interface PreviewChunk {
+  /** Chunk text content */
+  content: string
+
+  /** Chunk metadata (page number, section, etc.) */
+  metadata: Record<string, unknown>
+}
+
+/** Response from POST /documents/preview */
+export interface PreviewResponse {
+  /** Array of chunks */
+  chunks: PreviewChunk[]
+
+  /** Total number of chunks */
+  total_chunks: number
+}
+
+/** Chunking configuration parameters */
+export interface ChunkingConfig {
+  /** Number of tokens per chunk (default: 1000) */
+  chunkSize: number
+
+  /** Overlap tokens between adjacent chunks (default: 200) */
+  chunkOverlap: number
+}
+
+// ============================================================
+// Document List Types
+// ============================================================
+
+/** A processed document in the knowledge base */
+export interface Document {
+  id: number
+  file_name: string
+  file_path: string
+  file_size: number
+  content_type: string
+  created_at: string
+  processing_tasks: Array<{
+    id: number
+    status: string
+    error_message: string | null
+  }>
+}
+
+/** Accepted file types for upload */
+export const ACCEPTED_FILE_TYPES = {
+  'application/pdf': ['.pdf'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'text/plain': ['.txt'],
+  'text/markdown': ['.md'],
+} as const
+
+/** Maximum file size in bytes (default: 50 MB) */
+export const MAX_FILE_SIZE = 50 * 1024 * 1024
+
+/** Default chunking configuration */
+export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
+  chunkSize: 1000,
+  chunkOverlap: 200,
+}

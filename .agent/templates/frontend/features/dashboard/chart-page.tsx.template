@@ -1,0 +1,138 @@
+/**
+ * Chart Page Layout - Grid of chart cards with responsive grid
+ *
+ * @module frontend/features/dashboard/chart-page
+ * @source ui-tabler/preview/pages/charts.html (45L)
+ * @source ui-horizon-chakra/src/app/admin/default/page.tsx (150-167L)
+ * @reference https://github.com/tabler/tabler
+ * @template S6-M3-F3
+ *
+ * Chart dashboard page layout:
+ * 1. Full-width activity/overview chart at top
+ * 2. Two-column grid for primary charts (TotalSpent, WeeklyRevenue)
+ * 3. Mixed grid: table + smaller charts (DailyTraffic, PieCard)
+ * 4. Bottom row: complex table + tasks
+ *
+ * Key patterns:
+ * - Tabler: row-cards class with col-lg divisions
+ * - Horizon: SimpleGrid with breakpoint columns
+ * - Composable slots for plugging in any chart component
+ */
+
+import React from "react";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface ChartSlot {
+  /** Unique ID for the chart */
+  id: string;
+  /** Chart title */
+  title: string;
+  /** Column span: 'full', 'half', 'third', 'quarter' */
+  span?: "full" | "half" | "third" | "quarter";
+  /** Chart content (render prop or React element) */
+  children: React.ReactNode;
+}
+
+export interface ChartPageProps {
+  /** Page title */
+  title?: string;
+  /** Array of chart slots to render */
+  charts: ChartSlot[];
+  className?: string;
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
+const spanToWidth: Record<string, string> = {
+  full: "1 / -1",
+  half: "span 1",
+  third: "span 1",
+  quarter: "span 1",
+};
+
+const pageStyles = {
+  container: {
+    paddingTop: "24px",
+  } as React.CSSProperties,
+
+  title: {
+    fontSize: "var(--text-2xl, 24px)",
+    fontWeight: 700,
+    color: "var(--text-primary, #1e293b)",
+    marginBottom: "24px",
+  } as React.CSSProperties,
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: "20px",
+    marginBottom: "20px",
+  } as React.CSSProperties,
+
+  card: {
+    background: "var(--card-bg, #ffffff)",
+    borderRadius: "var(--radius-lg, 12px)",
+    border: "1px solid var(--border-color, #e2e8f0)",
+    overflow: "hidden",
+  } as React.CSSProperties,
+
+  cardHeader: {
+    padding: "16px 20px 0",
+    fontWeight: 600,
+    fontSize: "var(--text-base, 16px)",
+    color: "var(--text-primary, #1e293b)",
+  } as React.CSSProperties,
+
+  cardBody: {
+    padding: "16px 20px 20px",
+    minHeight: "200px",
+  } as React.CSSProperties,
+};
+
+// ─── Chart Page Component ───────────────────────────────────────────────────
+// @source ui-tabler/preview/pages/charts.html (10-44L)
+// @source ui-horizon-chakra/src/app/admin/default/page.tsx (150-167L)
+
+export function ChartPage({ title = "Analytics", charts, className }: ChartPageProps) {
+  return (
+    <div style={pageStyles.container} className={className}>
+      {title && <h1 style={pageStyles.title}>{title}</h1>}
+
+      <div style={pageStyles.grid}>
+        {charts.map((chart) => (
+          <div
+            key={chart.id}
+            style={{
+              ...pageStyles.card,
+              gridColumn:
+                chart.span === "full"
+                  ? "1 / -1"
+                  : spanToWidth[chart.span || "half"],
+            }}
+          >
+            {chart.title && (
+              <div style={pageStyles.cardHeader}>{chart.title}</div>
+            )}
+            <div style={pageStyles.cardBody}>{chart.children}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Usage Example ──────────────────────────────────────────────────────────
+//
+// <ChartPage
+//   title="Dashboard Analytics"
+//   charts={[
+//     { id: "overview", title: "Activity Overview", span: "full", children: <LineChart /> },
+//     { id: "spent", title: "Total Spent", children: <AreaChart /> },
+//     { id: "revenue", title: "Weekly Revenue", children: <BarChart /> },
+//     { id: "traffic", title: "Daily Traffic", span: "half", children: <BarChart /> },
+//     { id: "distribution", title: "Distribution", span: "half", children: <PieChart /> },
+//   ]}
+// />
+
+export default ChartPage;

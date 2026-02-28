@@ -1,0 +1,34 @@
+from typing import Any, Optional
+
+class AppException(Exception):
+    """
+    A3. 全局异常基类.
+    出处: fastapi-best-practices
+    """
+    def __init__(
+        self, 
+        message: str, 
+        error_code: str = "INTERNAL_ERROR", 
+        status_code: int = 500, 
+        data: Optional[Any] = None
+    ):
+        self.message = message
+        self.error_code = error_code
+        self.status_code = status_code
+        self.data = data
+        super().__init__(message)
+
+class EntityNotFoundException(AppException):
+    """404 Not Found."""
+    def __init__(self, message: str = "Resource not found", error_code: str = "NOT_FOUND"):
+        super().__init__(message, error_code, 404)
+
+class ValidationException(AppException):
+    """422 Unprocessable Entity."""
+    def __init__(self, message: str = "Validation error", error_code: str = "VALIDATION_ERROR", data: Any = None):
+        super().__init__(message, error_code, 422, data)
+
+class PermissionDeniedException(AppException):
+    """403 Forbidden."""
+    def __init__(self, message: str = "Permission denied", error_code: str = "PERMISSION_DENIED"):
+        super().__init__(message, error_code, 403)

@@ -1,0 +1,340 @@
+/**
+ * Timeline Component - Vertical, horizontal, activity log variants
+ *
+ * @module frontend/shared/components/ui/timeline
+ * @source ui-flowbite-lib/content/components/timeline.md (305L)
+ * @reference https://flowbite.com/docs/components/timeline/
+ * @template S6-M2-F1
+ *
+ * Timeline components for showing chronological data:
+ * 1. VerticalTimeline — left-border dot timeline with date/title/description
+ * 2. HorizontalTimeline — stepper-style horizontal timeline with connectors
+ * 3. ActivityTimeline — user activity feed with avatars
+ * 4. GroupedTimeline — grouped by date with user actions
+ *
+ * Key patterns from Flowbite:
+ * - Ordered list (ol) semantic structure
+ * - Border-start line with absolute-positioned dots
+ * - Badge/tag support (e.g., "Latest", "Private")
+ * - Responsive: vertical on mobile, horizontal on desktop
+ */
+
+import React from "react";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export type TimelineStatus = "completed" | "current" | "upcoming";
+
+export interface TimelineItem {
+  /** Date or time label */
+  date: string;
+  /** Title of the timeline entry */
+  title: string;
+  /** Optional description text */
+  description?: string;
+  /** Optional badge text (e.g., "Latest", "v2.0") */
+  badge?: string;
+  /** Optional icon element */
+  icon?: React.ReactNode;
+  /** Status for styling */
+  status?: TimelineStatus;
+  /** Optional CTA button */
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+export interface TimelineProps {
+  items: TimelineItem[];
+  /** 'vertical' (default) or 'horizontal' */
+  variant?: "vertical" | "horizontal";
+  className?: string;
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
+const colors = {
+  completed: "var(--color-brand, #4318ff)",
+  current: "var(--color-brand, #4318ff)",
+  upcoming: "var(--color-muted, #cbd5e1)",
+  dot: {
+    completed: "var(--color-brand-soft, #e9e3ff)",
+    current: "var(--color-brand, #4318ff)",
+    upcoming: "var(--color-muted, #e2e8f0)",
+  },
+};
+
+const verticalStyles = {
+  container: {
+    position: "relative" as const,
+    borderLeft: "2px solid var(--border-color, #e2e8f0)",
+    paddingLeft: 0,
+    margin: 0,
+    listStyle: "none",
+  } as React.CSSProperties,
+
+  item: {
+    marginBottom: "32px",
+    marginLeft: "24px",
+    position: "relative" as const,
+  } as React.CSSProperties,
+
+  dot: (status: TimelineStatus) =>
+    ({
+      position: "absolute",
+      width: "12px",
+      height: "12px",
+      borderRadius: "50%",
+      background: colors.dot[status],
+      border: `2px solid var(--bg-primary, #ffffff)`,
+      left: "-31px",
+      top: "6px",
+    }) as React.CSSProperties,
+
+  iconDot: {
+    position: "absolute" as const,
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    background: "var(--color-brand-soft, #e9e3ff)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    left: "-37px",
+    top: "0",
+    border: "4px solid var(--bg-primary, #ffffff)",
+  } as React.CSSProperties,
+
+  date: {
+    fontSize: "var(--text-sm, 14px)",
+    color: "var(--text-secondary, #64748b)",
+    fontWeight: 400,
+    lineHeight: 1,
+  } as React.CSSProperties,
+
+  title: {
+    fontSize: "var(--text-lg, 18px)",
+    fontWeight: 600,
+    color: "var(--text-primary, #1e293b)",
+    margin: "8px 0",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  } as React.CSSProperties,
+
+  badge: {
+    fontSize: "var(--text-xs, 12px)",
+    fontWeight: 500,
+    padding: "2px 8px",
+    borderRadius: "var(--radius-sm, 6px)",
+    background: "var(--color-brand-soft, #e9e3ff)",
+    color: "var(--color-brand, #4318ff)",
+    border: "1px solid var(--color-brand-border, #c4b5fd)",
+  } as React.CSSProperties,
+
+  description: {
+    fontSize: "var(--text-base, 16px)",
+    color: "var(--text-secondary, #64748b)",
+    lineHeight: 1.5,
+    marginBottom: "12px",
+  } as React.CSSProperties,
+
+  button: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 16px",
+    fontSize: "var(--text-sm, 14px)",
+    fontWeight: 500,
+    color: "var(--text-primary, #1e293b)",
+    background: "var(--bg-secondary, #f8fafc)",
+    border: "1px solid var(--border-color, #e2e8f0)",
+    borderRadius: "var(--radius-md, 8px)",
+    cursor: "pointer",
+    transition: "background 0.15s ease",
+  } as React.CSSProperties,
+};
+
+const horizontalStyles = {
+  container: {
+    display: "flex",
+    alignItems: "flex-start",
+    listStyle: "none",
+    padding: 0,
+    margin: 0,
+    overflowX: "auto" as const,
+  } as React.CSSProperties,
+
+  item: {
+    position: "relative" as const,
+    flex: 1,
+    minWidth: "160px",
+    marginBottom: 0,
+  } as React.CSSProperties,
+
+  connector: {
+    display: "flex",
+    alignItems: "center",
+  } as React.CSSProperties,
+
+  dot: (status: TimelineStatus) =>
+    ({
+      width: "24px",
+      height: "24px",
+      borderRadius: "50%",
+      background: colors.dot[status],
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+      border: "4px solid var(--bg-primary, #ffffff)",
+      zIndex: 1,
+    }) as React.CSSProperties,
+
+  line: (status: TimelineStatus) =>
+    ({
+      flex: 1,
+      height: "2px",
+      background:
+        status === "completed"
+          ? "var(--color-brand-border, #c4b5fd)"
+          : "var(--border-color, #e2e8f0)",
+      marginLeft: "8px",
+    }) as React.CSSProperties,
+
+  content: {
+    marginTop: "12px",
+    paddingRight: "24px",
+  } as React.CSSProperties,
+};
+
+// ─── Vertical Timeline ──────────────────────────────────────────────────────
+// @source ui-flowbite-lib/content/components/timeline.md — Default timeline (23-46L)
+
+function VerticalTimeline({ items, className }: TimelineProps) {
+  return (
+    <ol style={verticalStyles.container} className={className}>
+      {items.map((item, i) => (
+        <li key={i} style={verticalStyles.item}>
+          {item.icon ? (
+            <span style={verticalStyles.iconDot}>{item.icon}</span>
+          ) : (
+            <div
+              style={verticalStyles.dot(item.status || "upcoming")}
+            />
+          )}
+
+          <time style={verticalStyles.date}>{item.date}</time>
+
+          <h3 style={verticalStyles.title}>
+            {item.title}
+            {item.badge && <span style={verticalStyles.badge}>{item.badge}</span>}
+          </h3>
+
+          {item.description && (
+            <p style={verticalStyles.description}>{item.description}</p>
+          )}
+
+          {item.action && (
+            <button
+              style={verticalStyles.button}
+              onClick={item.action.onClick}
+            >
+              {item.action.label}
+              <span>→</span>
+            </button>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// ─── Horizontal Timeline ────────────────────────────────────────────────────
+// @source ui-flowbite-lib/content/components/timeline.md — Stepper timeline (93-136L)
+
+function HorizontalTimeline({ items, className }: TimelineProps) {
+  return (
+    <ol style={horizontalStyles.container} className={className}>
+      {items.map((item, i) => {
+        const status = item.status || "upcoming";
+        const isLast = i === items.length - 1;
+
+        return (
+          <li key={i} style={horizontalStyles.item}>
+            <div style={horizontalStyles.connector}>
+              <div style={horizontalStyles.dot(status)}>
+                {item.icon || (
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background:
+                        status === "upcoming"
+                          ? "var(--text-secondary, #64748b)"
+                          : "var(--color-brand, #4318ff)",
+                    }}
+                  />
+                )}
+              </div>
+              {!isLast && <div style={horizontalStyles.line(status)} />}
+            </div>
+            <div style={horizontalStyles.content}>
+              <time style={verticalStyles.date}>{item.date}</time>
+              <h3 style={{ ...verticalStyles.title, fontSize: "var(--text-base, 16px)" }}>
+                {item.title}
+              </h3>
+              {item.description && (
+                <p style={{ ...verticalStyles.description, fontSize: "var(--text-sm, 14px)" }}>
+                  {item.description}
+                </p>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+// ─── Timeline (Unified Export) ──────────────────────────────────────────────
+
+export function Timeline({ variant = "vertical", ...props }: TimelineProps) {
+  return variant === "horizontal" ? (
+    <HorizontalTimeline {...props} />
+  ) : (
+    <VerticalTimeline {...props} />
+  );
+}
+
+// ─── Usage Example ──────────────────────────────────────────────────────────
+//
+// const timelineItems: TimelineItem[] = [
+//   {
+//     date: "Feb 2026",
+//     title: "RAG Pipeline v2.0",
+//     description: "Hybrid search with RRF fusion deployed.",
+//     badge: "Latest",
+//     status: "completed",
+//   },
+//   {
+//     date: "Jan 2026",
+//     title: "Agent Orchestration",
+//     description: "Multi-agent environment with tool registry.",
+//     status: "completed",
+//   },
+//   {
+//     date: "Dec 2025",
+//     title: "Document Parser",
+//     description: "Deep PDF parsing with layout analysis.",
+//     status: "current",
+//     action: { label: "View Details", onClick: () => {} },
+//   },
+// ];
+//
+// <Timeline items={timelineItems} />
+// <Timeline items={timelineItems} variant="horizontal" />
+
+export default Timeline;

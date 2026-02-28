@@ -1,0 +1,184 @@
+/**
+ * CRUD Flow E2E Tests - Create, Read, Update, Delete operations
+ *
+ * @module tests/e2e/crud-flow
+ * @source cypress-realworld-app/cypress/tests/ui/new-transaction.spec.ts (294L)
+ * @reference https://github.com/cypress-io/cypress-realworld-app
+ * @template S5-M1-F2
+ *
+ * Comprehensive CRUD E2E tests covering:
+ * 1. Create item with valid data
+ * 2. Read/list items with filters
+ * 3. Form validation errors
+ * 4. Search by multiple attributes
+ * 5. Verify state changes after operations
+ *
+ * Key patterns from cypress-realworld-app:
+ * - Shared test context (ctx) for cross-test state
+ * - API intercept with named aliases (@createItem)
+ * - Parameterized search attribute tests
+ * - Balance/state verification after mutations
+ */
+
+import { test, expect, type Page } from "@playwright/test";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface TestItem {
+  title: string;
+  description: string;
+  category?: string;
+}
+
+// ─── Test Data ──────────────────────────────────────────────────────────────
+
+const VALID_ITEM: TestItem = {
+  title: "Test Document",
+  description: "A research document for testing",
+  category: "research",
+};
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+async function loginAsTestUser(page: Page) {
+  await page.goto("/signin");
+  await page.getByTestId("signin-username").fill("testuser");
+  await page.getByTestId("signin-password").fill("s3cret");
+  await page.getByTestId("signin-submit").click();
+  await page.waitForURL("/");
+}
+
+async function createItem(page: Page, item: TestItem) {
+  await page.getByTestId("new-item-button").click();
+  await page.getByTestId("item-title-input").fill(item.title);
+  await page.getByTestId("item-description-input").fill(item.description);
+  if (item.category) {
+    await page.getByTestId("item-category-select").selectOption(item.category);
+  }
+  await page.getByTestId("item-submit-button").click();
+}
+
+// ─── CRUD Flow Tests ────────────────────────────────────────────────────────
+
+test.describe("CRUD Operations", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsTestUser(page);
+  });
+
+  // @source new-transaction.spec.ts line 37-90 — create with validation
+  test("should create a new item and display it in the list", async ({
+    page,
+  }) => {
+    await createItem(page, VALID_ITEM);
+
+    // Verify success notification
+    await expect(page.getByTestId("alert-bar-success")).toBeVisible();
+    await expect(page.getByTestId("alert-bar-success")).toHaveText(
+      "Item Created!"
+    );
+
+    // Navigate back and verify item appears in list
+    await page.getByTestId("back-to-list").click();
+    await expect(page.getByTestId("item-list")).toContainText(
+      VALID_ITEM.title
+    );
+  });
+
+  // @source new-transaction.spec.ts line 122-145 — validation errors
+  test("should display validation errors for empty fields", async ({
+    page,
+  }) => {
+    await page.getByTestId("new-item-button").click();
+
+    // Fill and clear title
+    const titleInput = page.getByTestId("item-title-input");
+    await titleInput.fill("temp");
+    await titleInput.clear();
+    await titleInput.blur();
+    await expect(page.locator("#title-helper-text")).toContainText(
+      "Title is required"
+    );
+
+    // Fill and clear description
+    const descInput = page.getByTestId("item-description-input");
+    await descInput.fill("temp");
+    await descInput.clear();
+    await descInput.blur();
+    await expect(page.locator("#description-helper-text")).toContainText(
+      "Description is required"
+    );
+
+    // Submit should be disabled
+    await expect(page.getByTestId("item-submit-button")).toBeDisabled();
+  });
+
+  // @source new-transaction.spec.ts line 251-291 — search by attributes
+  test.describe("search by attribute", () => {
+    const searchAttrs = ["title", "description", "category"] as const;
+
+    for (const attr of searchAttrs) {
+      test(`should search by ${attr}`, async ({ page }) => {
+        // Create an item first so there's something to search for
+        await createItem(page, VALID_ITEM);
+        await page.getByTestId("back-to-list").click();
+
+        // Type in the search input
+        const searchTerm = VALID_ITEM[attr] || VALID_ITEM.title;
+        await page
+          .getByTestId("list-search-input")
+          .fill(searchTerm);
+
+        // Verify results appear
+        const items = page.getByTestId("list-item");
+        await expect(items.first()).toContainText(searchTerm);
+
+        // Clear search and verify list empties/resets
+        await page.getByTestId("list-search-input").clear();
+      });
+    }
+  });
+
+  // Read single item
+  test("should read item details", async ({ page }) => {
+    await createItem(page, VALID_ITEM);
+    await page.getByTestId("back-to-list").click();
+
+    // Click first item
+    await page.getByTestId("list-item").first().click();
+
+    // Verify detail view
+    await expect(page.getByTestId("item-detail-title")).toHaveText(
+      VALID_ITEM.title
+    );
+    await expect(page.getByTestId("item-detail-description")).toHaveText(
+      VALID_ITEM.description
+    );
+  });
+
+  // Delete item
+  test("should delete an item", async ({ page }) => {
+    await createItem(page, VALID_ITEM);
+    await page.getByTestId("back-to-list").click();
+
+    // Store initial count
+    const itemsBefore = await page.getByTestId("list-item").count();
+
+    // Delete first item
+    await page.getByTestId("list-item").first().click();
+    await page.getByTestId("item-delete-button").click();
+    await page.getByTestId("confirm-delete-button").click();
+
+    // Verify item removed
+    await expect(page.getByTestId("alert-bar-success")).toHaveText(
+      "Item Deleted"
+    );
+    const itemsAfter = await page.getByTestId("list-item").count();
+    expect(itemsAfter).toBeLessThan(itemsBefore);
+  });
+
+  // Read not found
+  test("should show 404 for non-existent item", async ({ page }) => {
+    await page.goto("/items/99999");
+    await expect(page.getByTestId("not-found-message")).toBeVisible();
+  });
+});

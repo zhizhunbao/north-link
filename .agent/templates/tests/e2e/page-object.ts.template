@@ -1,0 +1,153 @@
+/**
+ * Page Object Model - Base class and example implementation
+ *
+ * @module tests/e2e/pages
+ * @source playwright-template/src/ui/pages/playwright-dev.page.ts (39L)
+ * @source cypress-realworld-app/cypress/support/commands.ts getBySel pattern (34-40L)
+ * @reference https://github.com/nickmza/playwright-template
+ * @template S5-M2-F2
+ *
+ * Page Object Model pattern for E2E tests:
+ * 1. BasePage — shared locators and navigation helpers
+ * 2. LoginPage — signin/signup form interactions
+ * 3. DashboardPage — post-login main page
+ *
+ * Key patterns:
+ * - Constructor-time locator binding (readonly Locator)
+ * - Encapsulated user actions (login, navigate, search)
+ * - Composition over inheritance for complex pages
+ * - data-test attribute strategy (getBySel pattern from Cypress app)
+ */
+
+import { expect, type Locator, type Page } from "@playwright/test";
+
+// ─── Base Page ──────────────────────────────────────────────────────────────
+
+export abstract class BasePage {
+  readonly page: Page;
+  readonly navLogo: Locator;
+  readonly sidenavSignout: Locator;
+  readonly sidenavUsername: Locator;
+  readonly alertSuccess: Locator;
+  readonly alertError: Locator;
+
+  constructor(page: Page) {
+    this.page = page;
+    this.navLogo = page.getByTestId("app-name-logo");
+    this.sidenavSignout = page.getByTestId("sidenav-signout");
+    this.sidenavUsername = page.getByTestId("sidenav-username");
+    this.alertSuccess = page.getByTestId("alert-bar-success");
+    this.alertError = page.getByTestId("alert-bar-error");
+  }
+
+  /** Navigate to a relative path */
+  async goto(path: string) {
+    await this.page.goto(path);
+  }
+
+  /** Logout via sidebar */
+  async logout() {
+    await this.sidenavSignout.click();
+    await expect(this.page).toHaveURL(/\/signin/);
+  }
+
+  /** Get element by data-test attribute (mirrors Cypress getBySel) */
+  // @source cypress-realworld-app/cypress/support/commands.ts line 34-36
+  byTestId(selector: string): Locator {
+    return this.page.getByTestId(selector);
+  }
+
+  /** Get element by partial data-test attribute (mirrors Cypress getBySelLike) */
+  // @source cypress-realworld-app/cypress/support/commands.ts line 38-40
+  byTestIdLike(selector: string): Locator {
+    return this.page.locator(`[data-test*="${selector}"]`);
+  }
+}
+
+// ─── Login Page ─────────────────────────────────────────────────────────────
+// @source playwright-template/src/ui/pages/playwright-dev.page.ts (4-38L)
+
+export class LoginPage extends BasePage {
+  readonly usernameInput: Locator;
+  readonly passwordInput: Locator;
+  readonly submitButton: Locator;
+  readonly signupLink: Locator;
+  readonly rememberMeCheckbox: Locator;
+  readonly errorMessage: Locator;
+
+  constructor(page: Page) {
+    super(page);
+    this.usernameInput = page.getByTestId("signin-username");
+    this.passwordInput = page.getByTestId("signin-password");
+    this.submitButton = page.getByTestId("signin-submit");
+    this.signupLink = page.getByTestId("signup");
+    this.rememberMeCheckbox = page.getByTestId("signin-remember-me");
+    this.errorMessage = page.getByTestId("signin-error");
+  }
+
+  async goto() {
+    await this.page.goto("/signin");
+  }
+
+  /** Fill credentials and submit login form */
+  async login(username: string, password: string, rememberMe = false) {
+    await this.goto();
+    await this.usernameInput.fill(username);
+    await this.passwordInput.fill(password);
+    if (rememberMe) {
+      await this.rememberMeCheckbox.check();
+    }
+    await this.submitButton.click();
+  }
+
+  /** Verify login error is displayed */
+  async expectError(message: string) {
+    await expect(this.errorMessage).toBeVisible();
+    await expect(this.errorMessage).toHaveText(message);
+  }
+}
+
+// ─── Dashboard Page ─────────────────────────────────────────────────────────
+
+export class DashboardPage extends BasePage {
+  readonly searchInput: Locator;
+  readonly itemList: Locator;
+  readonly newItemButton: Locator;
+  readonly userBalance: Locator;
+
+  constructor(page: Page) {
+    super(page);
+    this.searchInput = page.getByTestId("list-search-input");
+    this.itemList = page.getByTestId("item-list");
+    this.newItemButton = page.getByTestId("new-item-button");
+    this.userBalance = this.byTestIdLike("user-balance");
+  }
+
+  async goto() {
+    await this.page.goto("/");
+  }
+
+  /** Search for items by query */
+  async searchItems(query: string) {
+    await this.searchInput.fill(query);
+    // Wait for search results to update
+    await this.page.waitForResponse((resp) =>
+      resp.url().includes("/search") && resp.status() === 200
+    );
+  }
+
+  /** Clear search input */
+  async clearSearch() {
+    await this.searchInput.clear();
+  }
+
+  /** Get count of items in the list */
+  async getItemCount(): Promise<number> {
+    return await this.byTestIdLike("list-item").count();
+  }
+
+  /** Click on the first item in the list */
+  async openFirstItem() {
+    await this.byTestIdLike("list-item").first().click();
+  }
+}

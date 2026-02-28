@@ -1,0 +1,62 @@
+/**
+ * Sign In Page
+ *
+ * Full sign-in page composing AuthLayout + UserAuthForm + Card.
+ *
+ * @source shadcn-admin
+ * @router Adapt useSearch/Link for your router (react-router-dom, tanstack, etc.)
+ * @i18n Replace all text content with t() calls
+ *
+ * @example
+ * // In your router config:
+ * { path: '/sign-in', element: <SignIn /> }
+ */
+import { Link } from 'react-router-dom' // Change to your router
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '{{alias}}/shared/components/ui/card'
+import { AuthLayout } from './auth-layout'
+import { UserAuthForm } from './sign-in-form'
+
+export function SignIn() {
+  return (
+    <AuthLayout>
+      <Card className='gap-4'>
+        <CardHeader>
+          <CardTitle className='text-lg tracking-tight'>Sign in</CardTitle>
+          <CardDescription>
+            Enter your email and password below to <br />
+            log into your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UserAuthForm />
+        </CardContent>
+        <CardFooter>
+          <p className='px-8 text-center text-sm text-muted-foreground'>
+            By clicking sign in, you agree to our{' '}
+            <a
+              href='/terms'
+              className='underline underline-offset-4 hover:text-primary'
+            >
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a
+              href='/privacy'
+              className='underline underline-offset-4 hover:text-primary'
+            >
+              Privacy Policy
+            </a>
+            .
+          </p>
+        </CardFooter>
+      </Card>
+    </AuthLayout>
+  )
+}

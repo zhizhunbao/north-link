@@ -1,0 +1,45 @@
+import { test, expect, Page } from '@playwright/test';
+import { E2E_CONFIG } from './config';
+
+/**
+ * Playwright E2E 用户流测试模板。
+ * 参考: full-stack-fastapi-template (login.spec.ts)
+ */
+
+test.describe('{{FeatureName}} Flow', () => {
+  // 核心模式: 确保每个测试都有独立的状态或使用共享的 storageState
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  const fillLoginForm = async (page: Page, email: string, password: string) => {
+    await page.getByPlaceholder(/email/i).fill(email);
+    await page.getByPlaceholder(/password/i).fill(password);
+  };
+
+  test('User can perform core feature flow', async ({ page }) => {
+    // 1. 登录
+    await page.goto('/login');
+    await fillLoginForm(page, E2E_CONFIG.users.admin.email, E2E_CONFIG.users.admin.password);
+    await page.getByRole('button', { name: /log in/i }).click();
+    
+    // 2. 验证跳转
+    await page.waitForURL('/');
+    
+    // 3. 执行核心业务 (示例: 创建条目)
+    await page.goto('/{{feature_name}}s');
+    await page.getByRole('button', { name: /create/i }).click();
+    
+    // 4. 输入表单
+    await page.getByLabel(/title/i).fill('Test {{FeatureName}}');
+    await page.getByRole('button', { name: /save/i }).click();
+    
+    // 5. 验证成功提示
+    await expect(page.getByText(/success/i)).toBeVisible();
+    await expect(page.getByText('Test {{FeatureName}}')).toBeVisible();
+  });
+
+  test('Guest user is redirected to login', async ({ page }) => {
+    await page.goto('/{{feature_name}}s');
+    await page.waitForURL('/login');
+    await expect(page.getByText(/please log in/i)).toBeVisible();
+  });
+});

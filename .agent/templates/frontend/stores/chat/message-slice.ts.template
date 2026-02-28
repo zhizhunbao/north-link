@@ -1,0 +1,304 @@
+/**
+ * Message Slice - Zustand slice for message CRUD, editing, and state dispatch
+ *
+ * Manages the message lifecycle: create, read, update, delete, and editing state.
+ * Uses an immer-based reducer pattern for immutable state updates,
+ * extracted from lobe-chat's message action split (publicApi + internals + query).
+ *
+ * @module stores/chat
+ * @source lobe-chat/src/store/chat/slices/message/actions/publicApi.ts (288 lines)
+ * @source lobe-chat/src/store/chat/slices/message/actions/internals.ts (dispatch pattern)
+ * @source lobe-chat/src/store/chat/slices/message/reducer.ts (256 lines)
+ * @source lobe-chat/src/store/chat/slices/message/initialState.ts (44 lines)
+ * @reference https://github.com/lobehub/lobe-chat
+ * @template S1-M4-2 frontend/stores/chat/message-slice.ts
+ */
+
+import { produce } from 'immer'
+import { type StateCreator } from 'zustand/vanilla'
+
+import type {
+  ChatMessage,
+  ChatStore,
+  MessageDispatch,
+  MessageSliceState,
+  MessageSliceActions,
+  StoreSetter,
+} from './types'
+
+// ============================================================
+// Initial State
+// ============================================================
+
+/**
+ * @source lobe-chat slices/message/initialState.ts
+ */
+export const initialMessageState: MessageSliceState = {
+  messagesMap: {},
+  messagesInit: false,
+  isCreatingMessage: false,
+  messageEditingIds: [],
+  messageLoadingIds: [],
+}
+
+// ============================================================
+// Reducer (Immer-based)
+// ============================================================
+
+/**
+ * Pure reducer for message state mutations.
+ * Uses immer for immutable updates on nested message arrays.
+ *
+ * @source lobe-chat slices/message/reducer.ts lines 100-255
+ */
+export function messagesReducer(
+  state: ChatMessage[],
+  payload: MessageDispatch
+): ChatMessage[] {
+  switch (payload.type) {
+    case 'createMessage': {
+      return produce(state, (draft) => {
+        draft.push({
+          ...payload.value,
+          id: payload.id,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as ChatMessage)
+      })
+    }
+
+    case 'updateMessage': {
+      return produce(state, (draft) => {
+        const idx = draft.findIndex((m) => m.id === payload.id)
+        if (idx >= 0) {
+          Object.assign(draft[idx], payload.value, { updatedAt: Date.now() })
+        }
+      })
+    }
+
+    case 'updateMessages': {
+      return payload.value
+    }
+
+    case 'deleteMessage': {
+      return produce(state, (draft) => {
+        const idx = draft.findIndex((m) => m.id === payload.id)
+        if (idx >= 0) draft.splice(idx, 1)
+      })
+    }
+
+    case 'deleteMessages': {
+      return state.filter((m) => !payload.ids.includes(m.id))
+    }
+
+    default: {
+      return state
+    }
+  }
+}
+
+// ============================================================
+// Utility: Message Map Key
+// ============================================================
+
+/**
+ * Generate a composite key for the messagesMap.
+ * Format: `{sessionId}_{topicId}` or `{sessionId}_default`
+ */
+export function messageMapKey(params: {
+  sessionId?: string
+  topicId?: string | null
+}): string {
+  const session = params.sessionId || 'default'
+  const topic = params.topicId || 'default'
+  return `${session}_${topic}`
+}
+
+// ============================================================
+// Toggle Utility
+// ============================================================
+
+/**
+ * Add or remove an ID from a boolean tracking array.
+ *
+ * @source lobe-chat utils — toggleBooleanList
+ */
+function toggleBooleanList(list: string[], id: string, add: boolean): string[] {
+  if (add) {
+    return list.includes(id) ? list : [...list, id]
+  }
+  return list.filter((i) => i !== id)
+}
+
+// ============================================================
+// Slice Creator
+// ============================================================
+
+/**
+ * Message slice — handles message CRUD and editing state.
+ *
+ * Pattern: Class-based action implementation with private #set/#get,
+ * exposed via StateCreator for Zustand store composition.
+ *
+ * @source lobe-chat slices/message/actions/publicApi.ts lines 27-287
+ */
+export const createMessageSlice: StateCreator<
+  ChatStore,
+  [['zustand/devtools', never]],
+  [],
+  MessageSliceActions
+> = (set, get) => ({
+  // --------------------------------------------------------
+  // Public API — called by UI components
+  // --------------------------------------------------------
+
+  /**
+   * Add a user message and clear input.
+   *
+   * @source lobe-chat publicApi.ts lines 66-99
+   */
+  addUserMessage: async ({ message, fileList }) => {
+    const { activeTopicId } = get()
+    const id = crypto.randomUUID()
+
+    get().internal_dispatchMessage({
+      type: 'createMessage',
+      id,
+      value: {
+        role: 'user',
+        content: message,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      } as Omit<ChatMessage, 'id'>,
+    })
+
+    get().updateMessageInput('')
+
+    // TODO: Persist via API
+    // await messageService.createMessage({ id, content: message, role: 'user', topicId: activeTopicId })
+  },
+
+  /**
+   * Delete a message by ID.
+   *
+   * @source lobe-chat publicApi.ts lines 119-140
+   */
+  deleteMessage: async (id) => {
+    get().internal_dispatchMessage({ type: 'deleteMessage', id })
+    // TODO: Persist via API
+    // await messageService.removeMessages([id])
+  },
+
+  /**
+   * Clear all messages in the current topic.
+   *
+   * @source lobe-chat publicApi.ts lines 183-206
+   */
+  clearMessage: async () => {
+    const { activeTopicId } = get()
+    const key = messageMapKey({ topicId: activeTopicId })
+
+    set(
+      { messagesMap: { ...get().messagesMap, [key]: [] } },
+      false,
+      'clearMessage'
+    )
+
+    // TODO: Persist via API
+    // await messageService.removeMessagesByTopic(activeTopicId)
+  },
+
+  /**
+   * Copy message content to clipboard.
+   *
+   * @source lobe-chat publicApi.ts lines 214-218
+   */
+  copyMessage: async (_id, content) => {
+    await navigator.clipboard.writeText(content)
+  },
+
+  /**
+   * Update message content (edit mode).
+   *
+   * @source lobe-chat publicApi.ts lines 234-247
+   */
+  modifyMessageContent: async (id, content) => {
+    get().internal_dispatchMessage({
+      type: 'updateMessage',
+      id,
+      value: { content },
+    })
+
+    // TODO: Persist via API
+    // await messageService.updateMessage(id, { content })
+  },
+
+  /**
+   * Toggle editing state for a message.
+   *
+   * @source lobe-chat publicApi.ts lines 220-226
+   */
+  toggleMessageEditing: (id, editing) => {
+    set(
+      {
+        messageEditingIds: toggleBooleanList(
+          get().messageEditingIds,
+          id,
+          editing
+        ),
+      },
+      false,
+      'toggleMessageEditing'
+    )
+  },
+
+  /**
+   * Update the input text.
+   *
+   * @source lobe-chat publicApi.ts lines 228-232
+   */
+  updateMessageInput: (message) => {
+    if (message === get().inputMessage) return
+    set({ inputMessage: message }, false, 'updateMessageInput')
+  },
+
+  // --------------------------------------------------------
+  // Query / Fetch
+  // --------------------------------------------------------
+
+  /**
+   * Refresh messages for the active context.
+   */
+  refreshMessages: async () => {
+    const { activeTopicId } = get()
+    const key = messageMapKey({ topicId: activeTopicId })
+
+    // TODO: Fetch from API
+    // const messages = await messageService.getMessages({ topicId: activeTopicId })
+    // set({ messagesMap: { ...get().messagesMap, [key]: messages } }, false, 'refreshMessages')
+  },
+
+  // --------------------------------------------------------
+  // Internal Dispatch
+  // --------------------------------------------------------
+
+  /**
+   * Apply a reducer action to the active message list.
+   *
+   * @source lobe-chat slices/message/actions/internals.ts — dispatchMessage pattern
+   */
+  internal_dispatchMessage: (payload) => {
+    const { activeTopicId } = get()
+    const key = messageMapKey({ topicId: activeTopicId })
+    const currentMessages = get().messagesMap[key] || []
+    const nextMessages = messagesReducer(currentMessages, payload)
+
+    set(
+      {
+        messagesMap: { ...get().messagesMap, [key]: nextMessages },
+      },
+      false,
+      `dispatchMessage/${payload.type}`
+    )
+  },
+})

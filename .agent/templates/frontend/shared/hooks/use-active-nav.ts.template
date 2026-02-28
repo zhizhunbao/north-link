@@ -1,0 +1,115 @@
+/**
+ * Active Nav Hook - Route-based navigation highlighting
+ *
+ * @module frontend/shared/hooks/use-active-nav
+ * @source shadcn-admin/src/hooks/use-check-active-nav.ts
+ * @reference https://github.com/satnaing/shadcn-admin
+ * @template S2-M4-F1
+ *
+ * Hook that checks if a navigation item matches the current route.
+ * Supports exact match, prefix match, and custom matchers.
+ *
+ * Usage:
+ *   const { isActive, checkActive } = useActiveNav();
+ *   <NavItem active={checkActive('/dashboard')} />
+ */
+
+import { useCallback, useMemo } from "react";
+import { useLocation } from "react-router-dom";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface UseActiveNavReturn {
+  /** Current pathname */
+  pathname: string;
+  /** Check if a specific path is active */
+  checkActive: (href: string, options?: MatchOptions) => boolean;
+  /** Shorthand: is the given path active (exact match)? */
+  isActive: (href: string) => boolean;
+  /** Shorthand: is the given path active (prefix match)? */
+  isActivePrefix: (href: string) => boolean;
+}
+
+export interface MatchOptions {
+  /** Match mode: 'exact' checks full path; 'prefix' checks start of path */
+  mode?: "exact" | "prefix";
+  /** If true, ignore trailing slashes when comparing */
+  ignoreTrailingSlash?: boolean;
+}
+
+// ─── Utility ────────────────────────────────────────────────────────────────
+
+function normalizePath(path: string, ignoreTrailing = true): string {
+  let normalized = path.toLowerCase();
+  if (ignoreTrailing && normalized.length > 1 && normalized.endsWith("/")) {
+    normalized = normalized.slice(0, -1);
+  }
+  return normalized;
+}
+
+// ─── Hook ───────────────────────────────────────────────────────────────────
+// @source shadcn-admin/src/hooks/use-check-active-nav.ts
+
+export function useActiveNav(): UseActiveNavReturn {
+  const { pathname } = useLocation();
+
+  const checkActive = useCallback(
+    (href: string, options: MatchOptions = {}): boolean => {
+      const { mode = "exact", ignoreTrailingSlash = true } = options;
+      const currentPath = normalizePath(pathname, ignoreTrailingSlash);
+      const targetPath = normalizePath(href, ignoreTrailingSlash);
+
+      if (mode === "exact") {
+        return currentPath === targetPath;
+      }
+
+      // Prefix mode
+      // Root "/" should only match exactly
+      if (targetPath === "" || targetPath === "/") {
+        return currentPath === "" || currentPath === "/";
+      }
+
+      return (
+        currentPath === targetPath ||
+        currentPath.startsWith(targetPath + "/")
+      );
+    },
+    [pathname]
+  );
+
+  const isActive = useCallback(
+    (href: string) => checkActive(href, { mode: "exact" }),
+    [checkActive]
+  );
+
+  const isActivePrefix = useCallback(
+    (href: string) => checkActive(href, { mode: "prefix" }),
+    [checkActive]
+  );
+
+  return useMemo(
+    () => ({ pathname, checkActive, isActive, isActivePrefix }),
+    [pathname, checkActive, isActive, isActivePrefix]
+  );
+}
+
+// ─── HOC variant ────────────────────────────────────────────────────────────
+
+/**
+ * HOC that injects `isActive` prop based on the `href` prop.
+ *
+ * @example
+ * const NavLink = withActiveNav(({ href, isActive, children }) => (
+ *   <a href={href} className={isActive ? 'active' : ''}>{children}</a>
+ * ));
+ */
+export function withActiveNav<P extends { href: string }>(
+  Component: React.ComponentType<P & { isActive: boolean }>
+) {
+  return function ActiveNavWrapper(props: P) {
+    const { isActivePrefix } = useActiveNav();
+    return <Component {...props} isActive={isActivePrefix(props.href)} />;
+  };
+}
+
+export default useActiveNav;

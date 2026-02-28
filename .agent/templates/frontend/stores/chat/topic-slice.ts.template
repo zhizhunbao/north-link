@@ -1,0 +1,387 @@
+/**
+ * Topic Slice - Zustand slice for conversation/topic CRUD, switching, and search
+ *
+ * Manages conversation threads (topics): create, switch, rename, delete,
+ * favorite, pagination, and auto-summary of topic titles via LLM.
+ *
+ * @module stores/chat
+ * @source lobe-chat/src/store/chat/slices/topic/action.ts (736 lines)
+ * @source lobe-chat/src/store/chat/slices/topic/reducer.ts (75 lines)
+ * @source lobe-chat/src/store/chat/slices/topic/initialState.ts (53 lines)
+ * @reference https://github.com/lobehub/lobe-chat
+ * @template S1-M4-3 frontend/stores/chat/topic-slice.ts
+ */
+
+import { produce } from 'immer'
+import isEqual from 'fast-deep-equal'
+import { type StateCreator } from 'zustand/vanilla'
+
+import type {
+  ChatMessage,
+  ChatStore,
+  ChatTopic,
+  CreateTopicParams,
+  TopicData,
+  TopicDispatch,
+  TopicSliceState,
+  TopicSliceActions,
+  StoreSetter,
+} from './types'
+
+// ============================================================
+// Initial State
+// ============================================================
+
+/**
+ * @source lobe-chat slices/topic/initialState.ts
+ */
+export const initialTopicState: TopicSliceState = {
+  activeTopicId: null,
+  topicDataMap: {},
+  creatingTopic: false,
+  topicLoadingIds: [],
+  topicSearchKeywords: '',
+  isSearchingTopic: false,
+  searchTopics: [],
+}
+
+// ============================================================
+// Topic Reducer (Immer-based)
+// ============================================================
+
+/**
+ * Pure reducer for topic list mutations.
+ *
+ * @source lobe-chat slices/topic/reducer.ts lines 24-74
+ */
+export function topicReducer(
+  state: ChatTopic[] = [],
+  payload: TopicDispatch
+): ChatTopic[] {
+  switch (payload.type) {
+    case 'addTopic': {
+      return produce(state, (draft) => {
+        draft.unshift({
+          ...payload.value,
+          id: payload.value.id ?? crypto.randomUUID(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          favorite: false,
+        } as ChatTopic)
+        // Keep favorites at top
+        draft.sort((a, b) => Number(b.favorite) - Number(a.favorite))
+      })
+    }
+
+    case 'updateTopic': {
+      return produce(state, (draft) => {
+        const idx = draft.findIndex((t) => t.id === payload.id)
+        if (idx >= 0) {
+          const merged = { ...draft[idx], ...payload.value }
+          if (!isEqual(draft[idx], merged)) {
+            draft[idx] = { ...merged, updatedAt: Date.now() }
+          }
+        }
+      })
+    }
+
+    case 'deleteTopic': {
+      return produce(state, (draft) => {
+        const idx = draft.findIndex((t) => t.id === payload.id)
+        if (idx >= 0) draft.splice(idx, 1)
+      })
+    }
+
+    default:
+      return state
+  }
+}
+
+// ============================================================
+// Topic Map Key
+// ============================================================
+
+/**
+ * Generate a key for topicDataMap.
+ *
+ * @source lobe-chat utils/topicMapKey
+ */
+export function topicMapKey(params: {
+  sessionId?: string
+  groupId?: string
+}): string {
+  if (params.groupId) return `group_${params.groupId}`
+  return `session_${params.sessionId || 'default'}`
+}
+
+// ============================================================
+// Toggle Utility
+// ============================================================
+
+function toggleLoading(list: string[], id: string, loading: boolean): string[] {
+  if (loading) return list.includes(id) ? list : [...list, id]
+  return list.filter((i) => i !== id)
+}
+
+// ============================================================
+// Slice Creator
+// ============================================================
+
+/**
+ * Topic slice — manages conversation threads.
+ *
+ * @source lobe-chat slices/topic/action.ts — ChatTopicActionImpl (736 lines, simplified)
+ */
+export const createTopicSlice: StateCreator<
+  ChatStore,
+  [['zustand/devtools', never]],
+  [],
+  TopicSliceActions
+> = (set, get) => ({
+  /**
+   * Create a new topic from current messages.
+   *
+   * @source lobe-chat topic/action.ts lines 100-114
+   */
+  createTopic: async (sessionId) => {
+    set({ creatingTopic: true }, false, 'createTopic/start')
+
+    const id = crypto.randomUUID()
+    const key = topicMapKey({ sessionId })
+
+    _dispatchTopic(set, get, key, {
+      type: 'addTopic',
+      value: { id, title: 'New Conversation', sessionId },
+    })
+
+    // TODO: Persist via API
+    // const topicId = await topicService.createTopic({ title, sessionId })
+
+    set({ creatingTopic: false }, false, 'createTopic/end')
+    return id
+  },
+
+  /**
+   * Save current conversation to a new topic.
+   *
+   * @source lobe-chat topic/action.ts lines 116-136
+   */
+  saveToTopic: async (sessionId) => {
+    const topicId = await get().createTopic(sessionId)
+    if (!topicId) return undefined
+
+    // Auto-summarize title in background
+    const key = `session_${sessionId || 'default'}_default`
+    const messages = get().messagesMap[key] || []
+    if (messages.length > 0) {
+      get().summaryTopicTitle(topicId, messages)
+    }
+
+    return topicId
+  },
+
+  /**
+   * Switch active topic. Clears new-conversation messages when switching away.
+   *
+   * @source lobe-chat topic/action.ts lines 494-533
+   */
+  switchTopic: async (id) => {
+    set(
+      { activeTopicId: id },
+      false,
+      'switchTopic'
+    )
+
+    await get().refreshMessages()
+  },
+
+  /**
+   * Delete a topic.
+   *
+   * @source lobe-chat topic/action.ts lines 571-582
+   */
+  removeTopic: async (id) => {
+    const { activeTopicId } = get()
+    const key = topicMapKey({})
+
+    _dispatchTopic(set, get, key, { type: 'deleteTopic', id })
+
+    // TODO: Persist via API
+    // await topicService.removeTopic(id)
+
+    // Switch back to default if deleting active topic
+    if (activeTopicId === id) {
+      await get().switchTopic(null)
+    }
+  },
+
+  /**
+   * Update topic title.
+   *
+   * @source lobe-chat topic/action.ts lines 284-286
+   */
+  updateTopicTitle: async (id, title) => {
+    const key = topicMapKey({})
+
+    _dispatchTopic(set, get, key, {
+      type: 'updateTopic',
+      id,
+      value: { title },
+    })
+
+    // TODO: Persist via API
+    // await topicService.updateTopic(id, { title })
+  },
+
+  /**
+   * Toggle topic favorite status.
+   *
+   * @source lobe-chat topic/action.ts lines 233-264
+   */
+  favoriteTopic: async (id, favorite) => {
+    const key = topicMapKey({})
+
+    _dispatchTopic(set, get, key, {
+      type: 'updateTopic',
+      id,
+      value: { favorite },
+    })
+
+    // TODO: Persist via API
+    // await topicService.updateTopic(id, { favorite })
+  },
+
+  /**
+   * Refresh topics from server.
+   *
+   * @source lobe-chat topic/action.ts lines 602-610
+   */
+  refreshTopic: async () => {
+    // TODO: Fetch from API
+    // const data = await topicService.getTopics({ sessionId })
+    // _updateTopics(set, get, key, data)
+  },
+
+  /**
+   * Load more topics (pagination).
+   *
+   * @source lobe-chat topic/action.ts lines 401-466
+   */
+  loadMoreTopics: async () => {
+    const key = topicMapKey({})
+    const current = get().topicDataMap[key]
+    if (!current || current.isLoadingMore || !current.hasMore) return
+
+    set(
+      {
+        topicDataMap: {
+          ...get().topicDataMap,
+          [key]: { ...current, isLoadingMore: true },
+        },
+      },
+      false,
+      'loadMoreTopics/start'
+    )
+
+    try {
+      const nextPage = current.currentPage + 1
+      // TODO: Fetch from API
+      // const result = await topicService.getTopics({ current: nextPage, pageSize: current.pageSize })
+      // const nextItems = [...current.items, ...result.items]
+
+      set(
+        {
+          topicDataMap: {
+            ...get().topicDataMap,
+            [key]: {
+              ...current,
+              // items: nextItems,
+              // total: result.total,
+              currentPage: nextPage,
+              // hasMore: result.items.length >= current.pageSize,
+              isLoadingMore: false,
+            },
+          },
+        },
+        false,
+        'loadMoreTopics/done'
+      )
+    } catch {
+      set(
+        {
+          topicDataMap: {
+            ...get().topicDataMap,
+            [key]: { ...current, isLoadingMore: false },
+          },
+        },
+        false,
+        'loadMoreTopics/error'
+      )
+    }
+  },
+
+  /**
+   * Auto-summarize topic title using LLM.
+   *
+   * @source lobe-chat topic/action.ts lines 193-231
+   */
+  summaryTopicTitle: async (topicId, messages) => {
+    if (messages.length === 0) return
+
+    // Build a summary prompt from the first few messages
+    const preview = messages
+      .slice(0, 4)
+      .map((m) => `${m.role}: ${m.content.slice(0, 200)}`)
+      .join('\n')
+
+    // TODO: Call LLM to generate title
+    // const title = await chatService.summarizeTitle(preview)
+    // await get().updateTopicTitle(topicId, title)
+
+    // Fallback: use first user message as title
+    const firstUserMsg = messages.find((m) => m.role === 'user')
+    if (firstUserMsg) {
+      const title = firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? '...' : '')
+      await get().updateTopicTitle(topicId, title)
+    }
+  },
+})
+
+// ============================================================
+// Internal Helpers
+// ============================================================
+
+/**
+ * Apply a topic dispatch action to the topic data map.
+ *
+ * @source lobe-chat topic/action.ts lines 651-676 — internal_dispatchTopic
+ */
+function _dispatchTopic(
+  set: StoreSetter<ChatStore>,
+  get: () => ChatStore,
+  key: string,
+  payload: TopicDispatch
+): void {
+  const currentData = get().topicDataMap[key]
+  const currentItems = currentData?.items || []
+  const nextItems = topicReducer(currentItems, payload)
+
+  if (isEqual(nextItems, currentItems)) return
+
+  set(
+    {
+      topicDataMap: {
+        ...get().topicDataMap,
+        [key]: {
+          currentPage: currentData?.currentPage ?? 0,
+          hasMore: currentData?.hasMore ?? false,
+          items: nextItems,
+          pageSize: currentData?.pageSize ?? 20,
+          total: currentData?.total ?? nextItems.length,
+        },
+      },
+    },
+    false,
+    `topicDispatch/${payload.type}`
+  )
+}

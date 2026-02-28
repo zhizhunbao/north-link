@@ -1,0 +1,291 @@
+/**
+ * Chat Store Types - TypeScript type definitions for the Zustand chat store
+ *
+ * Defines all state shapes, action interfaces, and shared types used across
+ * the message, topic, and AI chat slices. Based on lobe-chat's slice pattern
+ * but simplified for a RAG research assistant context.
+ *
+ * @module stores/chat
+ * @source lobe-chat/src/store/chat/initialState.ts (aggregate state shape)
+ * @source lobe-chat/src/store/chat/slices/message/initialState.ts (message state)
+ * @source lobe-chat/src/store/chat/slices/topic/initialState.ts (topic state)
+ * @source lobe-chat/src/store/chat/slices/aiChat/initialState.ts (ai chat state)
+ * @source lobe-chat/src/store/chat/slices/message/reducer.ts (dispatch actions)
+ * @reference https://github.com/lobehub/lobe-chat
+ * @template S1-M4-5 frontend/stores/chat/types.ts
+ */
+
+// ============================================================
+// Message Types
+// ============================================================
+
+/** Message role aligned with OpenAI API */
+export type MessageRole = 'user' | 'assistant' | 'system' | 'tool'
+
+/**
+ * Core chat message.
+ *
+ * @source lobe-chat types — UIChatMessage (simplified for RAG)
+ */
+export interface ChatMessage {
+  id: string
+  role: MessageRole
+  content: string
+  createdAt: number
+  updatedAt: number
+
+  /** Parent message ID for branching */
+  parentId?: string
+
+  /** Citation sources attached to this message */
+  citations?: CitationSource[]
+
+  /** Tool call results (for function calling) */
+  tools?: ToolPayload[]
+
+  /** Additional metadata */
+  metadata?: MessageMetadata
+}
+
+export interface MessageMetadata {
+  /** Model used to generate this message */
+  model?: string
+  /** Token usage */
+  tokens?: { prompt: number; completion: number }
+  /** Whether the message is collapsed in UI */
+  collapsed?: boolean
+  /** Processing duration in ms */
+  duration?: number
+}
+
+export interface CitationSource {
+  id: number
+  text: string
+  metadata: Record<string, unknown>
+}
+
+export interface ToolPayload {
+  id: string
+  name: string
+  arguments: string
+  result?: { id: string; content: string }
+}
+
+// ============================================================
+// Topic (Conversation) Types
+// ============================================================
+
+/**
+ * A chat topic / conversation thread.
+ *
+ * @source lobe-chat types/topic — ChatTopic
+ */
+export interface ChatTopic {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
+
+  /** Knowledge base IDs linked to this topic */
+  knowledgeBaseIds?: number[]
+
+  /** Whether topic is favorited */
+  favorite?: boolean
+
+  /** Agent/session ID this topic belongs to */
+  sessionId?: string
+}
+
+export interface CreateTopicParams {
+  title: string
+  messages?: string[]
+  sessionId?: string
+  knowledgeBaseIds?: number[]
+}
+
+// ============================================================
+// Message Slice State
+// ============================================================
+
+/**
+ * @source lobe-chat slices/message/initialState.ts — ChatMessageState
+ */
+export interface MessageSliceState {
+  /** Messages indexed by topic key (sessionId_topicId) */
+  messagesMap: Record<string, ChatMessage[]>
+
+  /** Whether initial messages have been loaded */
+  messagesInit: boolean
+
+  /** IDs of messages currently being created */
+  isCreatingMessage: boolean
+
+  /** IDs of messages being edited by user */
+  messageEditingIds: string[]
+
+  /** IDs of messages with pending server operations */
+  messageLoadingIds: string[]
+}
+
+// ============================================================
+// Topic Slice State
+// ============================================================
+
+/**
+ * Paginated topic data for a session container.
+ *
+ * @source lobe-chat slices/topic/initialState.ts — TopicData
+ */
+export interface TopicData {
+  items: ChatTopic[]
+  total: number
+  currentPage: number
+  pageSize: number
+  hasMore: boolean
+  isLoadingMore?: boolean
+}
+
+/**
+ * @source lobe-chat slices/topic/initialState.ts — ChatTopicState
+ */
+export interface TopicSliceState {
+  /** Currently active topic ID (null = new conversation) */
+  activeTopicId: string | null
+
+  /** Topic data indexed by session key */
+  topicDataMap: Record<string, TopicData>
+
+  /** Whether a new topic is being created */
+  creatingTopic: boolean
+
+  /** IDs of topics with pending operations */
+  topicLoadingIds: string[]
+
+  /** Topic rename in progress */
+  topicRenamingId?: string
+
+  /** Search state */
+  topicSearchKeywords: string
+  isSearchingTopic: boolean
+  searchTopics: ChatTopic[]
+}
+
+// ============================================================
+// AI Chat Slice State
+// ============================================================
+
+/**
+ * @source lobe-chat slices/aiChat/initialState.ts — ChatAIChatState
+ */
+export interface AIChatSliceState {
+  /** Current input text */
+  inputMessage: string
+
+  /** Files attached to current message */
+  inputFiles: File[]
+
+  /** IDs of messages with active streaming */
+  streamingMessageIds: string[]
+
+  /** AbortController map for cancellable streams */
+  abortControllerMap: Record<string, AbortController>
+}
+
+// ============================================================
+// Aggregate Store Types
+// ============================================================
+
+/** Combined state from all slices */
+export type ChatStoreState = MessageSliceState &
+  TopicSliceState &
+  AIChatSliceState
+
+// ============================================================
+// Action Types (per slice)
+// ============================================================
+
+/** Message slice actions */
+export interface MessageSliceActions {
+  // Public API
+  addUserMessage: (params: { message: string; fileList?: string[] }) => Promise<void>
+  deleteMessage: (id: string) => Promise<void>
+  clearMessage: () => Promise<void>
+  copyMessage: (id: string, content: string) => Promise<void>
+  modifyMessageContent: (id: string, content: string) => Promise<void>
+  toggleMessageEditing: (id: string, editing: boolean) => void
+  updateMessageInput: (message: string) => void
+
+  // Query / fetch
+  refreshMessages: () => Promise<void>
+
+  // Internal dispatch
+  internal_dispatchMessage: (payload: MessageDispatch) => void
+}
+
+/** Topic slice actions */
+export interface TopicSliceActions {
+  createTopic: (sessionId?: string) => Promise<string | undefined>
+  saveToTopic: (sessionId?: string) => Promise<string | undefined>
+  switchTopic: (id: string | null) => Promise<void>
+  removeTopic: (id: string) => Promise<void>
+  updateTopicTitle: (id: string, title: string) => Promise<void>
+  favoriteTopic: (id: string, favorite: boolean) => Promise<void>
+  refreshTopic: () => Promise<void>
+  loadMoreTopics: () => Promise<void>
+  summaryTopicTitle: (topicId: string, messages: ChatMessage[]) => Promise<void>
+}
+
+/** AI Chat slice actions */
+export interface AIChatSliceActions {
+  sendMessage: (message: string) => Promise<void>
+  resendMessage: (id: string) => Promise<void>
+  stopGenerateMessage: () => void
+  internal_toggleStreaming: (id: string, streaming: boolean) => void
+}
+
+/** Full store type */
+export type ChatStore = ChatStoreState &
+  MessageSliceActions &
+  TopicSliceActions &
+  AIChatSliceActions
+
+// ============================================================
+// Reducer Dispatch Types
+// ============================================================
+
+/**
+ * Message dispatch actions for the reducer.
+ *
+ * @source lobe-chat slices/message/reducer.ts — MessageDispatch
+ */
+export type MessageDispatch =
+  | { type: 'createMessage'; id: string; value: Omit<ChatMessage, 'id'> }
+  | { type: 'updateMessage'; id: string; value: Partial<ChatMessage> }
+  | { type: 'updateMessages'; value: ChatMessage[] }
+  | { type: 'deleteMessage'; id: string }
+  | { type: 'deleteMessages'; ids: string[] }
+
+/**
+ * Topic dispatch actions for the reducer.
+ *
+ * @source lobe-chat slices/topic/reducer.ts — ChatTopicDispatch
+ */
+export type TopicDispatch =
+  | { type: 'addTopic'; value: CreateTopicParams & { id?: string } }
+  | { type: 'updateTopic'; id: string; value: Partial<ChatTopic> }
+  | { type: 'deleteTopic'; id: string }
+
+// ============================================================
+// Utility Types
+// ============================================================
+
+/**
+ * Zustand set function with devtools support.
+ *
+ * @source lobe-chat store/types — StoreSetter
+ */
+export type StoreSetter<T> = (
+  partial: T | Partial<T> | ((state: T) => T | Partial<T>),
+  replace?: boolean | undefined,
+  action?: string | { type: unknown }
+) => void

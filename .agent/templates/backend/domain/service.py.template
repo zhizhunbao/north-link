@@ -1,0 +1,27 @@
+from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from .models import {{FeatureName}}
+from .schemas import {{FeatureName}}Create, {{FeatureName}}Update
+
+class {{FeatureName}}Service:
+    """
+    A9. 业务逻辑层.
+    出处: fastapi-best-practices (Netflix/Dispatch Service Pattern)
+    """
+    def __init__(self, db: AsyncSession) -> None:
+        self._db = db
+
+    async def list(self, skip: int = 0, limit: int = 20):
+        pass
+
+    async def get(self, id: str):
+        pass
+
+    async def create(self, data: {{FeatureName}}Create):
+        pass
+
+    async def update(self, id: str, data: {{FeatureName}}Update):
+        pass
+
+    async def delete(self, id: str) -> bool:
+        pass

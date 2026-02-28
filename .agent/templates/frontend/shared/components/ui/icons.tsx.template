@@ -1,0 +1,241 @@
+/**
+ * Icons Registry - Centralized icon management with Lucide React
+ *
+ * @module shared/components/ui/icons
+ * @source shadcn-taxonomy/components/icons.tsx (73L)
+ * @reference https://github.com/shadcn-ui/taxonomy
+ * @template S2-M2-F4
+ *
+ * Centralized icon registry that:
+ * 1. Maps semantic names to Lucide icons (e.g., "post" → FileText)
+ * 2. Includes custom SVG icons (e.g., GitHub, Google logos)
+ * 3. Provides type-safe icon lookup
+ * 4. Works with dashboard-nav.ts config (icon: "settings" → Icons.settings)
+ *
+ * Why centralize icons:
+ * - Single import point instead of scattered lucide-react imports
+ * - Easy to swap icon library (Lucide → Heroicons → custom)
+ * - Custom SVGs live alongside library icons
+ * - Dashboard nav config references icon keys by string
+ *
+ * Usage:
+ * ```tsx
+ * import { Icons, type IconKey } from '@/components/ui/icons';
+ *
+ * // Direct usage
+ * <Icons.settings className="h-4 w-4" />
+ * <Icons.spinner className="animate-spin" />
+ *
+ * // Dynamic lookup (from nav config)
+ * const icon = iconKey as IconKey;
+ * const IconComponent = Icons[icon];
+ * <IconComponent className="h-4 w-4" />
+ *
+ * // Type-safe icon props
+ * function NavItem({ icon }: { icon: IconKey }) {
+ *   const Icon = Icons[icon];
+ *   return <Icon className="mr-2 h-4 w-4" />;
+ * }
+ * ```
+ */
+
+import * as React from "react";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export type IconProps = React.SVGAttributes<SVGElement> & {
+  size?: number | string;
+};
+
+type IconComponent = React.FC<IconProps>;
+
+// ─── Lucide-style Icon Factory ───────────────────────────────────────────────
+// Instead of depending on lucide-react, we define commonly used icons inline.
+// Replace with `import { X, Check, ... } from 'lucide-react'` if lucide is installed.
+
+const createIcon = (
+  name: string,
+  paths: React.ReactNode
+): IconComponent => {
+  const Component: IconComponent = ({
+    size = 24,
+    className = "",
+    ...props
+  }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+      {...props}
+    >
+      {paths}
+    </svg>
+  );
+  Component.displayName = name;
+  return Component;
+};
+
+// ─── Icon Registry ───────────────────────────────────────────────────────────
+
+export const Icons = {
+  // ── App ──────────────────────────────────────────────────────────────
+  logo: createIcon("Logo", (
+    <><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" /></>
+  )),
+
+  // ── Navigation ───────────────────────────────────────────────────────
+  dashboard: createIcon("Dashboard", (
+    <><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></>
+  )),
+
+  messageSquare: createIcon("MessageSquare", (
+    <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>
+  )),
+
+  fileText: createIcon("FileText", (
+    <><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" x2="8" y1="13" y2="13" /><line x1="16" x2="8" y1="17" y2="17" /><line x1="10" x2="8" y1="9" y2="9" /></>
+  )),
+
+  book: createIcon("Book", (
+    <><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></>
+  )),
+
+  barChart: createIcon("BarChart", (
+    <><line x1="12" x2="12" y1="20" y2="10" /><line x1="18" x2="18" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="16" /></>
+  )),
+
+  // ── User & Auth ─────────────────────────────────────────────────────
+  user: createIcon("User", (
+    <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>
+  )),
+
+  settings: createIcon("Settings", (
+    <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></>
+  )),
+
+  billing: createIcon("Billing", (
+    <><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></>
+  )),
+
+  // ── Actions ──────────────────────────────────────────────────────────
+  close: createIcon("Close", (
+    <><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>
+  )),
+
+  check: createIcon("Check", (
+    <><polyline points="20 6 9 17 4 12" /></>
+  )),
+
+  add: createIcon("Add", (
+    <><path d="M5 12h14" /><path d="M12 5v14" /></>
+  )),
+
+  trash: createIcon("Trash", (
+    <><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></>
+  )),
+
+  search: createIcon("Search", (
+    <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>
+  )),
+
+  // ── Arrows & Chevrons ────────────────────────────────────────────────
+  chevronLeft: createIcon("ChevronLeft", (
+    <><path d="m15 18-6-6 6-6" /></>
+  )),
+
+  chevronRight: createIcon("ChevronRight", (
+    <><path d="m9 18 6-6-6-6" /></>
+  )),
+
+  arrowRight: createIcon("ArrowRight", (
+    <><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></>
+  )),
+
+  // ── Status ───────────────────────────────────────────────────────────
+  spinner: createIcon("Spinner", (
+    <><path d="M21 12a9 9 0 1 1-6.219-8.56" /></>
+  )),
+
+  warning: createIcon("Warning", (
+    <><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></>
+  )),
+
+  help: createIcon("Help", (
+    <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></>
+  )),
+
+  // ── Theme ────────────────────────────────────────────────────────────
+  sun: createIcon("Sun", (
+    <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></>
+  )),
+
+  moon: createIcon("Moon", (
+    <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></>
+  )),
+
+  laptop: createIcon("Laptop", (
+    <><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16" /></>
+  )),
+
+  // ── Social (custom SVG) ──────────────────────────────────────────────
+  gitHub: ({ size = 24, className = "", ...props }: IconProps) => (
+    <svg
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 496 512"
+      className={className}
+      {...props}
+    >
+      <path
+        fill="currentColor"
+        d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"
+      />
+    </svg>
+  ),
+
+  google: ({ size = 24, className = "", ...props }: IconProps) => (
+    <svg
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className={className}
+      {...props}
+    >
+      <path
+        fill="currentColor"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+      />
+      <path
+        fill="currentColor"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="currentColor"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+      />
+      <path
+        fill="currentColor"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </svg>
+  ),
+} as const;
+
+// ─── Type Exports ────────────────────────────────────────────────────────────
+
+export type IconKey = keyof typeof Icons;
+export type { IconComponent };
+
+export default Icons;

@@ -1,0 +1,56 @@
+/**
+ * Sidebar Navigation Types
+ *
+ * Type definitions for sidebar navigation items.
+ *
+ * @source shadcn-admin
+ * @router Adapt LinkProps type for your router (react-router-dom, @tanstack/react-router, etc.)
+ */
+
+// Change this import based on your router
+// import { type LinkProps } from '@tanstack/react-router'
+// import { type LinkProps } from 'react-router-dom'
+
+type User = {
+  name: string
+  email: string
+  avatar: string
+}
+
+type Team = {
+  name: string
+  logo: React.ElementType
+  plan: string
+}
+
+type BaseNavItem = {
+  title: string
+  badge?: string
+  icon?: React.ElementType
+}
+
+type NavLink = BaseNavItem & {
+  url: string
+  items?: never
+}
+
+type NavCollapsible = BaseNavItem & {
+  items: (BaseNavItem & { url: string })[]
+  url?: never
+}
+
+type NavItem = NavCollapsible | NavLink
+
+type NavGroup = {
+  title: string
+  items: NavItem[]
+}
+
+type SidebarData = {
+  user: User
+  teams: Team[]
+  navGroups: NavGroup[]
+}
+
+export type { SidebarData, NavGroup, NavItem, NavCollapsible, NavLink, User, Team }
+

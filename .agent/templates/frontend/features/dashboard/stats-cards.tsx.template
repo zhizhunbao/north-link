@@ -1,0 +1,189 @@
+/**
+ * Dashboard Statistics Cards - MiniStatistics with icon, value, growth
+ *
+ * @module frontend/features/dashboard/stats-cards
+ * @source ui-horizon-chakra/src/components/card/MiniStatistics.tsx (60L)
+ * @source ui-horizon-chakra/src/app/admin/default/page.tsx (171L)
+ * @reference https://github.com/horizon-ui/horizon-ui-chakra-nextjs
+ * @template S6-M1-F1
+ *
+ * Dashboard stat cards grid component:
+ * 1. MiniStatCard — single stat with icon, value, growth indicator
+ * 2. StatsGrid — responsive grid layout (1→2→3→6 columns)
+ * 3. Built with vanilla CSS, framework-agnostic JSX
+ *
+ * Key patterns from Horizon UI:
+ * - startContent/endContent slots for icon positioning
+ * - Growth percentage with color coding (green/red)
+ * - Responsive SimpleGrid → CSS Grid fallback
+ * - Dark mode via CSS custom properties
+ */
+
+import React from "react";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface StatCardProps {
+  /** Card label (e.g., "Earnings", "Documents Processed") */
+  name: string;
+  /** Display value (e.g., "$350.4", "2,935") */
+  value: string | number;
+  /** Optional growth indicator (e.g., "+23%", "-5%") */
+  growth?: string;
+  /** Optional icon element rendered on the left */
+  icon?: React.ReactNode;
+  /** Optional content rendered on the right */
+  endContent?: React.ReactNode;
+}
+
+export interface StatsGridProps {
+  stats: StatCardProps[];
+  className?: string;
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
+const styles = {
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: "20px",
+    marginBottom: "20px",
+  } as React.CSSProperties,
+
+  card: {
+    background: "var(--card-bg, #ffffff)",
+    borderRadius: "var(--radius-lg, 16px)",
+    padding: "16px 20px",
+    boxShadow: "var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08))",
+    display: "flex",
+    alignItems: "center",
+    transition: "box-shadow 0.2s ease, transform 0.2s ease",
+  } as React.CSSProperties,
+
+  iconBox: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "var(--radius-md, 12px)",
+    background: "var(--icon-bg, #f4f7fe)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    marginRight: "16px",
+  } as React.CSSProperties,
+
+  statContent: {
+    flex: 1,
+    minWidth: 0,
+  } as React.CSSProperties,
+
+  label: {
+    fontSize: "var(--text-sm, 14px)",
+    color: "var(--text-secondary, #a3aed0)",
+    lineHeight: 1,
+    marginBottom: "6px",
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  } as React.CSSProperties,
+
+  value: {
+    fontSize: "var(--text-2xl, 24px)",
+    fontWeight: 700,
+    color: "var(--text-primary, #1b2559)",
+    lineHeight: 1.2,
+  } as React.CSSProperties,
+
+  growthContainer: {
+    display: "flex",
+    alignItems: "center",
+    marginTop: "4px",
+    gap: "4px",
+  } as React.CSSProperties,
+
+  growthPositive: {
+    fontSize: "var(--text-xs, 12px)",
+    fontWeight: 700,
+    color: "var(--color-success, #01b574)",
+  } as React.CSSProperties,
+
+  growthNegative: {
+    fontSize: "var(--text-xs, 12px)",
+    fontWeight: 700,
+    color: "var(--color-error, #ee5d50)",
+  } as React.CSSProperties,
+
+  growthLabel: {
+    fontSize: "var(--text-xs, 12px)",
+    color: "var(--text-secondary, #a3aed0)",
+  } as React.CSSProperties,
+
+  endSlot: {
+    marginLeft: "auto",
+    display: "flex",
+    alignItems: "center",
+  } as React.CSSProperties,
+};
+
+// ─── MiniStatCard ───────────────────────────────────────────────────────────
+// @source ui-horizon-chakra/src/components/card/MiniStatistics.tsx (6-59L)
+
+export function MiniStatCard({
+  name,
+  value,
+  growth,
+  icon,
+  endContent,
+}: StatCardProps) {
+  const isPositive = growth && !growth.startsWith("-");
+
+  return (
+    <div style={styles.card} className="stat-card">
+      {icon && <div style={styles.iconBox}>{icon}</div>}
+
+      <div style={styles.statContent}>
+        <div style={styles.label}>{name}</div>
+        <div style={styles.value}>{value}</div>
+        {growth && (
+          <div style={styles.growthContainer}>
+            <span
+              style={isPositive ? styles.growthPositive : styles.growthNegative}
+            >
+              {growth}
+            </span>
+            <span style={styles.growthLabel}>since last month</span>
+          </div>
+        )}
+      </div>
+
+      {endContent && <div style={styles.endSlot}>{endContent}</div>}
+    </div>
+  );
+}
+
+// ─── StatsGrid ──────────────────────────────────────────────────────────────
+// @source ui-horizon-chakra/src/app/admin/default/page.tsx (64-148L)
+
+export function StatsGrid({ stats, className }: StatsGridProps) {
+  return (
+    <div style={styles.grid} className={className}>
+      {stats.map((stat, i) => (
+        <MiniStatCard key={`stat-${i}`} {...stat} />
+      ))}
+    </div>
+  );
+}
+
+// ─── Usage Example ──────────────────────────────────────────────────────────
+//
+// const dashboardStats: StatCardProps[] = [
+//   { name: "Documents", value: "2,935", icon: <FileIcon />, growth: "+23%" },
+//   { name: "Queries Today", value: "154", icon: <SearchIcon /> },
+//   { name: "Avg Latency", value: "0.8s", icon: <ClockIcon />, growth: "-12%" },
+//   { name: "Active Users", value: "48", icon: <UserIcon />, growth: "+5%" },
+// ];
+//
+// <StatsGrid stats={dashboardStats} />
+
+export default StatsGrid;

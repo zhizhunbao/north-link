@@ -1,0 +1,20 @@
+import uuid
+from datetime import datetime, timezone
+from sqlmodel import Field, SQLModel, Relationship
+from sqlalchemy import Column, DateTime
+
+from .schemas import {{FeatureName}}Base
+
+class {{FeatureName}}({{FeatureName}}Base, table=True):
+    """
+    A8. 数据库模型.
+    出处: full-stack-fastapi-template
+    """
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime | None = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
+    
+    # owner: "User" = Relationship(back_populates="{{feature_name}}s")

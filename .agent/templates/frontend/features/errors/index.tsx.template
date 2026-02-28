@@ -1,0 +1,157 @@
+/**
+ * Error Pages Components
+ *
+ * Unified error pages for 404, 500, 403, 401, and maintenance.
+ *
+ * @source shadcn-admin
+ * @i18n Replace all text strings with t() calls
+ * @router Adapt useNavigate/useRouter for your router (react-router-dom, @tanstack/react-router, etc.)
+ *
+ * @example
+ * // In router config
+ * { path: '*', element: <NotFoundError /> }
+ *
+ * // In ErrorBoundary
+ * <ErrorBoundary fallback={<GeneralError minimal />}>
+ */
+import { useNavigate } from 'react-router-dom' // Change to your router
+import { cn } from '{{alias}}/lib/utils'
+import { Button } from '{{alias}}/shared/components/ui/button'
+
+// ============================================================================
+// 500 - General/Server Error
+// ============================================================================
+
+type GeneralErrorProps = React.HTMLAttributes<HTMLDivElement> & {
+  minimal?: boolean
+}
+
+export function GeneralError({ className, minimal = false }: GeneralErrorProps) {
+  const navigate = useNavigate()
+
+  return (
+    <div className={cn('h-svh w-full', className)}>
+      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
+        {!minimal && (
+          <h1 className='text-[7rem] leading-tight font-bold'>500</h1>
+        )}
+        <span className='font-medium'>Oops! Something went wrong {`:')`}</span>
+        <p className='text-center text-muted-foreground'>
+          We apologize for the inconvenience. <br /> Please try again later.
+        </p>
+        {!minimal && (
+          <div className='mt-6 flex gap-4'>
+            <Button variant='outline' onClick={() => window.history.back()}>
+              Go Back
+            </Button>
+            <Button onClick={() => navigate('/')}>Back to Home</Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// 404 - Not Found
+// ============================================================================
+
+export function NotFoundError() {
+  const navigate = useNavigate()
+
+  return (
+    <div className='h-svh'>
+      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
+        <h1 className='text-[7rem] leading-tight font-bold'>404</h1>
+        <span className='font-medium'>Oops! Page Not Found!</span>
+        <p className='text-center text-muted-foreground'>
+          It seems like the page you're looking for <br />
+          does not exist or might have been removed.
+        </p>
+        <div className='mt-6 flex gap-4'>
+          <Button variant='outline' onClick={() => window.history.back()}>
+            Go Back
+          </Button>
+          <Button onClick={() => navigate('/')}>Back to Home</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// 403 - Forbidden
+// ============================================================================
+
+export function ForbiddenError() {
+  const navigate = useNavigate()
+
+  return (
+    <div className='h-svh'>
+      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
+        <h1 className='text-[7rem] leading-tight font-bold'>403</h1>
+        <span className='font-medium'>Access Forbidden!</span>
+        <p className='text-center text-muted-foreground'>
+          You don't have permission to access this page. <br />
+          Please contact your administrator if you believe this is an error.
+        </p>
+        <div className='mt-6 flex gap-4'>
+          <Button variant='outline' onClick={() => window.history.back()}>
+            Go Back
+          </Button>
+          <Button onClick={() => navigate('/')}>Back to Home</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// 401 - Unauthorized
+// ============================================================================
+
+export function UnauthorizedError() {
+  const navigate = useNavigate()
+
+  return (
+    <div className='h-svh'>
+      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
+        <h1 className='text-[7rem] leading-tight font-bold'>401</h1>
+        <span className='font-medium'>Unauthorized Access!</span>
+        <p className='text-center text-muted-foreground'>
+          Please log in to access this page. <br />
+          Your session may have expired.
+        </p>
+        <div className='mt-6 flex gap-4'>
+          <Button variant='outline' onClick={() => window.history.back()}>
+            Go Back
+          </Button>
+          <Button onClick={() => navigate('/login')}>Log In</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// 503 - Maintenance
+// ============================================================================
+
+export function MaintenanceError() {
+  return (
+    <div className='h-svh'>
+      <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
+        <h1 className='text-[7rem] leading-tight font-bold'>503</h1>
+        <span className='font-medium'>Under Maintenance</span>
+        <p className='text-center text-muted-foreground'>
+          We're currently performing scheduled maintenance. <br />
+          Please check back soon.
+        </p>
+        <div className='mt-6'>
+          <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+

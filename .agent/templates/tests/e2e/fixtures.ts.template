@@ -1,0 +1,173 @@
+/**
+ * Playwright Custom Fixtures - Auth, test data, and base URL
+ *
+ * @module tests/e2e/fixtures
+ * @source playwright-template/playwright.config.ts (116L)
+ * @source playwright-template/src/api/global-setup.ts (34L)
+ * @source cypress-realworld-app/cypress/support/commands.ts (393L)
+ * @reference https://github.com/nickmza/playwright-template
+ * @template S5-M2-F1
+ *
+ * Reusable Playwright test fixtures:
+ * 1. Authenticated page fixture (auto-login before tests)
+ * 2. API context with auth token
+ * 3. Test data factory for common entities
+ * 4. Global setup: environment-aware config + token acquisition
+ *
+ * Key patterns:
+ * - test.extend<>() for custom fixtures
+ * - storageState for session persistence
+ * - Global setup for OAuth/token exchange
+ * - Environment-based dotenv loading
+ */
+
+import { test as base, expect, type Page, type APIRequestContext } from "@playwright/test";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface TestUser {
+  username: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+export interface TestData {
+  user: TestUser;
+  adminUser: TestUser;
+}
+
+// ─── Default Test Data ──────────────────────────────────────────────────────
+
+const DEFAULT_TEST_DATA: TestData = {
+  user: {
+    username: process.env.TEST_USERNAME || "testuser",
+    password: process.env.TEST_PASSWORD || "s3cret",
+    firstName: "Test",
+    lastName: "User",
+    email: "test@example.com",
+  },
+  adminUser: {
+    username: process.env.ADMIN_USERNAME || "admin",
+    password: process.env.ADMIN_PASSWORD || "admin123",
+    firstName: "Admin",
+    lastName: "User",
+    email: "admin@example.com",
+  },
+};
+
+// ─── Custom Fixtures ────────────────────────────────────────────────────────
+// @source cypress-realworld-app/cypress/support/commands.ts login command (42-86L)
+
+type CustomFixtures = {
+  /** Already-authenticated page (logged in as test user) */
+  authenticatedPage: Page;
+  /** API request context with auth headers */
+  authenticatedRequest: APIRequestContext;
+  /** Test data constants */
+  testData: TestData;
+};
+
+/**
+ * Extended test with auth and data fixtures.
+ *
+ * Usage:
+ *   import { test, expect } from './fixtures';
+ *
+ *   test('should show dashboard', async ({ authenticatedPage }) => {
+ *     await authenticatedPage.goto('/dashboard');
+ *     await expect(authenticatedPage.locator('h1')).toHaveText('Dashboard');
+ *   });
+ */
+export const test = base.extend<CustomFixtures>({
+  // ── Authenticated Page ──────────────────────────────────────────────────
+  // Login via UI before each test, save storage state for reuse
+  authenticatedPage: async ({ page, baseURL }, use) => {
+    // Navigate to signin
+    await page.goto(`${baseURL}/signin`);
+
+    // Fill login form
+    await page.getByTestId("signin-username").fill(DEFAULT_TEST_DATA.user.username);
+    await page.getByTestId("signin-password").fill(DEFAULT_TEST_DATA.user.password);
+    await page.getByTestId("signin-submit").click();
+
+    // Wait for redirect to home
+    await page.waitForURL("**/");
+    await expect(page.getByTestId("sidenav-username")).toBeVisible();
+
+    // Provide the logged-in page to the test
+    await use(page);
+  },
+
+  // ── Authenticated API Context ───────────────────────────────────────────
+  // @source playwright-template/src/api/global-setup.ts (4-31L)
+  authenticatedRequest: async ({ playwright, baseURL }, use) => {
+    // Login via API to get auth token
+    const context = await playwright.request.newContext({
+      baseURL: baseURL,
+    });
+
+    const loginResp = await context.post("/api/auth/login", {
+      data: {
+        username: DEFAULT_TEST_DATA.user.username,
+        password: DEFAULT_TEST_DATA.user.password,
+      },
+    });
+
+    let authToken = "";
+    if (loginResp.ok()) {
+      const body = await loginResp.json();
+      authToken = body.access_token || body.token || "";
+    }
+
+    // Create authenticated request context
+    const authContext = await playwright.request.newContext({
+      baseURL: baseURL,
+      extraHTTPHeaders: {
+        Authorization: `Bearer ${authToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    await use(authContext);
+    await authContext.dispose();
+    await context.dispose();
+  },
+
+  // ── Test Data ───────────────────────────────────────────────────────────
+  testData: async ({}, use) => {
+    await use(DEFAULT_TEST_DATA);
+  },
+});
+
+export { expect };
+
+// ─── Global Setup ───────────────────────────────────────────────────────────
+// @source playwright-template/src/api/global-setup.ts (4-31L)
+//
+// Create this as a separate file: global-setup.ts
+//
+// async function globalSetup() {
+//   const dotenv = await import("dotenv");
+//   const env = process.env.NODE_ENV || "local";
+//   dotenv.config({ path: `./environments/${env}.env` });
+//
+//   // Acquire auth token if needed
+//   if (process.env.AUTH_TOKEN_URL) {
+//     const { request } = await import("@playwright/test");
+//     const ctx = await request.newContext();
+//     const resp = await ctx.post(process.env.AUTH_TOKEN_URL, {
+//       form: {
+//         client_id: process.env.CLIENT_ID || "",
+//         grant_type: process.env.GRANT_TYPE || "client_credentials",
+//         scope: process.env.SCOPE || "",
+//         client_secret: process.env.CLIENT_SECRET || "",
+//       },
+//     });
+//     const body = await resp.json();
+//     process.env.AUTH_TOKEN = body.access_token;
+//     await ctx.dispose();
+//   }
+// }
+// export default globalSetup;

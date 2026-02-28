@@ -1,0 +1,14 @@
+from app.core.exceptions import AppException
+from .constants import ErrorCode
+
+class {{FeatureName}}NotFound(AppException):
+    """
+    A12. 模块级异常.
+    出处: fastapi-best-practices
+    """
+    def __init__(self, id: str):
+        super().__init__(
+            message=f"{{FeatureName}} {id} not found",
+            error_code=ErrorCode.NOT_FOUND,
+            status_code=404,
+        )

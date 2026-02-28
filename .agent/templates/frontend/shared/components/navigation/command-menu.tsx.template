@@ -1,0 +1,112 @@
+/**
+ * Command Menu
+ *
+ * Global command palette (⌘K) for navigation and theme switching.
+ *
+ * @source shadcn-admin
+ * @requires shadcn/ui command, scroll-area
+ * @requires theme-provider context
+ * @requires search-provider context (or create your own open state)
+ * @router Adapt useNavigate for your router
+ * @i18n Replace all text strings with t() calls
+ *
+ * @example
+ * // In your root layout:
+ * <CommandMenu />
+ */
+import React from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowRight, ChevronRight, Laptop, Moon, Sun } from 'lucide-react'
+import { useTheme } from '{{alias}}/shared/context/theme-provider'
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '{{alias}}/shared/components/ui/command'
+import { ScrollArea } from '{{alias}}/shared/components/ui/scroll-area'
+import type { NavGroup } from '{{alias}}/shared/components/layouts/types'
+
+interface CommandMenuProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  navGroups: NavGroup[]
+}
+
+export function CommandMenu({ open, onOpenChange, navGroups }: CommandMenuProps) {
+  const navigate = useNavigate()
+  const { setTheme } = useTheme()
+
+  const runCommand = React.useCallback(
+    (command: () => unknown) => {
+      onOpenChange(false)
+      command()
+    },
+    [onOpenChange]
+  )
+
+  return (
+    <CommandDialog modal open={open} onOpenChange={onOpenChange}>
+      <CommandInput placeholder="Type a command or search..." />
+      <CommandList>
+        <ScrollArea type="hover" className="h-72 pe-1">
+          <CommandEmpty>No results found.</CommandEmpty>
+          {navGroups.map((group) => (
+            <CommandGroup key={group.title} heading={group.title}>
+              {group.items.map((navItem, i) => {
+                if (navItem.url)
+                  return (
+                    <CommandItem
+                      key={`${navItem.url}-${i}`}
+                      value={navItem.title}
+                      onSelect={() => {
+                        runCommand(() => navigate(navItem.url!))
+                      }}
+                    >
+                      <div className="flex size-4 items-center justify-center">
+                        <ArrowRight className="size-2 text-muted-foreground/80" />
+                      </div>
+                      {navItem.title}
+                    </CommandItem>
+                  )
+
+                return navItem.items?.map((subItem, j) => (
+                  <CommandItem
+                    key={`${navItem.title}-${subItem.url}-${j}`}
+                    value={`${navItem.title}-${subItem.url}`}
+                    onSelect={() => {
+                      runCommand(() => navigate(subItem.url!))
+                    }}
+                  >
+                    <div className="flex size-4 items-center justify-center">
+                      <ArrowRight className="size-2 text-muted-foreground/80" />
+                    </div>
+                    {navItem.title} <ChevronRight /> {subItem.title}
+                  </CommandItem>
+                ))
+              })}
+            </CommandGroup>
+          ))}
+          <CommandSeparator />
+          <CommandGroup heading="Theme">
+            <CommandItem onSelect={() => runCommand(() => setTheme('light'))}>
+              <Sun /> <span>Light</span>
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand(() => setTheme('dark'))}>
+              <Moon className="scale-90" />
+              <span>Dark</span>
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand(() => setTheme('system'))}>
+              <Laptop />
+              <span>System</span>
+            </CommandItem>
+          </CommandGroup>
+        </ScrollArea>
+      </CommandList>
+    </CommandDialog>
+  )
+}
+

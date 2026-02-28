@@ -1,0 +1,111 @@
+# {{FeatureName}} Implementation Plan
+
+## Overview
+
+[简要描述功能]
+
+## User Story
+
+**As a** [用户角色]
+**I want** [功能]
+**So that** [价值]
+
+## Requirements
+
+### Functional Requirements
+- [ ] FR-1: [功能需求 1]
+- [ ] FR-2: [功能需求 2]
+
+### Non-Functional Requirements
+- [ ] NFR-1: 性能 - [具体指标]
+- [ ] NFR-2: 安全 - [具体要求]
+
+## Technical Design
+
+### Backend
+
+**Files:**
+- `backend/app/{{feature_name}}/routes.py` - API 路由
+- `backend/app/{{feature_name}}/service.py` - 业务逻辑
+- `backend/app/{{feature_name}}/schemas.py` - 数据模型
+- `backend/app/{{feature_name}}/models.py` - 数据库模型 (如需要)
+
+**API Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/{{feature_name}}` | 获取列表 |
+| GET | `/api/v1/{{feature_name}}/{id}` | 获取单个 |
+| POST | `/api/v1/{{feature_name}}` | 创建 |
+| PUT | `/api/v1/{{feature_name}}/{id}` | 更新 |
+| DELETE | `/api/v1/{{feature_name}}/{id}` | 删除 |
+
+### Frontend
+
+**Files:**
+- `frontend/src/features/{{feature_name}}/components/` - React 组件
+- `frontend/src/features/{{feature_name}}/hooks/` - 自定义 Hooks
+- `frontend/src/features/{{feature_name}}/services/` - API 服务
+- `frontend/src/features/{{feature_name}}/types.ts` - TypeScript 类型
+
+**Components:**
+- `{{FeatureName}}List` - 列表视图
+- `{{FeatureName}}Form` - 表单组件
+- `{{FeatureName}}Detail` - 详情视图
+
+## Implementation Phases
+
+### Phase 1: Backend (Est. X hours)
+1. [ ] 创建数据模型
+2. [ ] 实现 Service 层
+3. [ ] 创建 API 端点
+4. [ ] 编写单元测试
+
+### Phase 2: Frontend (Est. X hours)
+1. [ ] 创建 TypeScript 类型
+2. [ ] 实现 API 服务
+3. [ ] 创建 React 组件
+4. [ ] 编写组件测试
+
+### Phase 3: Integration (Est. X hours)
+1. [ ] 端到端测试
+2. [ ] 性能优化
+3. [ ] 文档更新
+
+## Test Plan
+
+### Unit Tests
+- [ ] Service 层测试
+- [ ] Schema 验证测试
+
+### Integration Tests
+- [ ] API 端点测试
+- [ ] 数据库操作测试
+
+### E2E Tests
+- [ ] 用户流程测试
+- [ ] 多语言测试 (EN/FR)
+
+## Risks & Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| [风险描述] | High/Medium/Low | [缓解措施] |
+
+## Success Criteria
+
+- [ ] 所有测试通过
+- [ ] 代码审查通过
+- [ ] 性能指标达标
+- [ ] 文档完整
+
+## Timeline
+
+- **Created**: {{date}}
+- **Estimated Completion**: [日期]
+- **Status**: Draft
+
+---
+
+**Approved by**: [审批人]
+**Date**: [日期]

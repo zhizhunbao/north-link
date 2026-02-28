@@ -1,0 +1,43 @@
+/**
+ * Navigation Progress
+ *
+ * Top loading bar that shows during route transitions.
+ *
+ * @source shadcn-admin
+ * @requires react-top-loading-bar
+ * @router Adapt router state for your router (React Router, Next.js, etc.)
+ *
+ * @example
+ * // In your root layout:
+ * <NavigationProgress />
+ *
+ * @install
+ * npm install react-top-loading-bar
+ */
+import { useEffect, useRef } from 'react'
+import { useNavigation } from 'react-router-dom'
+import LoadingBar, { type LoadingBarRef } from 'react-top-loading-bar'
+
+export function NavigationProgress() {
+  const ref = useRef<LoadingBarRef>(null)
+  const navigation = useNavigation()
+
+  useEffect(() => {
+    // React Router v6: navigation.state is 'idle' | 'loading' | 'submitting'
+    if (navigation.state === 'loading' || navigation.state === 'submitting') {
+      ref.current?.continuousStart()
+    } else {
+      ref.current?.complete()
+    }
+  }, [navigation.state])
+
+  return (
+    <LoadingBar
+      color="var(--muted-foreground)"
+      ref={ref}
+      shadow={true}
+      height={2}
+    />
+  )
+}
+

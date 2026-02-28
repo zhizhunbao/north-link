@@ -1,0 +1,80 @@
+/**
+ * Auth Store
+ *
+ * Zustand store for authentication state: user, access token, and cookie persistence.
+ *
+ * @source shadcn-admin
+ * @deps zustand
+ *
+ * @example
+ * const { auth } = useAuthStore()
+ * auth.setUser({ email: 'user@example.com', role: ['user'], exp: Date.now() + 86400000 })
+ * auth.setAccessToken('jwt-token')
+ * auth.reset() // logout
+ */
+import { create } from 'zustand'
+
+const ACCESS_TOKEN_KEY = 'access_token'
+
+interface AuthUser {
+  accountNo: string
+  email: string
+  role: string[]
+  exp: number
+}
+
+interface AuthState {
+  auth: {
+    user: AuthUser | null
+    setUser: (user: AuthUser | null) => void
+    accessToken: string
+    setAccessToken: (accessToken: string) => void
+    resetAccessToken: () => void
+    reset: () => void
+  }
+}
+
+function getCookie(key: string): string | null {
+  // Replace with your cookie utility
+  const match = document.cookie.match(new RegExp(`(^| )${key}=([^;]+)`))
+  return match ? decodeURIComponent(match[2]) : null
+}
+
+function setCookie(key: string, value: string) {
+  document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=86400`
+}
+
+function removeCookie(key: string) {
+  document.cookie = `${key}=; path=/; max-age=0`
+}
+
+export const useAuthStore = create<AuthState>()((set) => {
+  const cookieState = getCookie(ACCESS_TOKEN_KEY)
+  const initToken = cookieState ? JSON.parse(cookieState) : ''
+  return {
+    auth: {
+      user: null,
+      setUser: (user) =>
+        set((state) => ({ ...state, auth: { ...state.auth, user } })),
+      accessToken: initToken,
+      setAccessToken: (accessToken) =>
+        set((state) => {
+          setCookie(ACCESS_TOKEN_KEY, JSON.stringify(accessToken))
+          return { ...state, auth: { ...state.auth, accessToken } }
+        }),
+      resetAccessToken: () =>
+        set((state) => {
+          removeCookie(ACCESS_TOKEN_KEY)
+          return { ...state, auth: { ...state.auth, accessToken: '' } }
+        }),
+      reset: () =>
+        set((state) => {
+          removeCookie(ACCESS_TOKEN_KEY)
+          return {
+            ...state,
+            auth: { ...state.auth, user: null, accessToken: '' },
+          }
+        }),
+    },
+  }
+})

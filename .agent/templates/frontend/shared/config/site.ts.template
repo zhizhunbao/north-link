@@ -1,0 +1,74 @@
+/**
+ * Site Configuration - Centralized site metadata and links
+ *
+ * @module shared/config/site
+ * @source shadcn-taxonomy/config/site.ts (14L)
+ * @reference https://github.com/shadcn-ui/taxonomy
+ * @template S2-M2-F2
+ *
+ * Single source of truth for site-wide metadata used in:
+ * - SEO meta tags (title, description, OG image)
+ * - Footer links
+ * - Navigation branding
+ * - Social links
+ *
+ * Usage:
+ * ```tsx
+ * import { siteConfig } from '@/config/site';
+ *
+ * // In meta tags
+ * <title>{siteConfig.name}</title>
+ * <meta name="description" content={siteConfig.description} />
+ *
+ * // In footer
+ * <a href={siteConfig.links.github}>GitHub</a>
+ * ```
+ */
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface SiteConfig {
+  /** Application name */
+  name: string;
+  /** Short description for meta tags */
+  description: string;
+  /** Production URL (no trailing slash) */
+  url: string;
+  /** Open Graph image URL */
+  ogImage: string;
+  /** Author / creator name */
+  author: string;
+  /** External links */
+  links: {
+    github: string;
+    docs?: string;
+    twitter?: string;
+    discord?: string;
+    [key: string]: string | undefined;
+  };
+  /** Application keywords for SEO */
+  keywords?: string[];
+}
+
+// ─── Configuration ───────────────────────────────────────────────────────────
+
+export const siteConfig: SiteConfig = {
+  name: "{{APP_NAME}}",
+  description: "{{APP_DESCRIPTION}}",
+  url: "{{APP_URL}}",
+  ogImage: "{{APP_URL}}/og.jpg",
+  author: "{{AUTHOR_NAME}}",
+  links: {
+    github: "{{GITHUB_URL}}",
+    docs: "{{DOCS_URL}}",
+    // twitter: "https://twitter.com/{{TWITTER_HANDLE}}",
+    // discord: "https://discord.gg/{{DISCORD_INVITE}}",
+  },
+  keywords: [
+    "{{KEYWORD_1}}",
+    "{{KEYWORD_2}}",
+    "{{KEYWORD_3}}",
+  ],
+};
+
+export default siteConfig;

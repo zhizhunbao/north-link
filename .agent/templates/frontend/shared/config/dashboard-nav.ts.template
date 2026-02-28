@@ -1,0 +1,140 @@
+/**
+ * Dashboard Navigation Configuration - Declarative sidebar and header nav
+ *
+ * @module shared/config/dashboard-nav
+ * @source shadcn-taxonomy/config/dashboard.ts (33L) + shadcn-admin/src/components/layout/types.ts
+ * @reference https://github.com/shadcn-ui/taxonomy
+ * @template S2-M2-F3
+ *
+ * Declarative navigation configuration for dashboard layouts.
+ * Icon names reference the Icons registry (S2-M2-F4).
+ *
+ * Usage:
+ * ```tsx
+ * import { dashboardConfig } from '@/config/dashboard-nav';
+ *
+ * // In sidebar component
+ * {dashboardConfig.sidebarNav.map((item) => (
+ *   <NavLink key={item.href} to={item.href} icon={item.icon}>
+ *     {item.title}
+ *   </NavLink>
+ * ))}
+ *
+ * // In header
+ * {dashboardConfig.mainNav.map((item) => (
+ *   <Link key={item.href} to={item.href}>{item.title}</Link>
+ * ))}
+ * ```
+ */
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface NavItem {
+  /** Display label */
+  title: string;
+  /** Route path */
+  href: string;
+  /** Icon key from Icons registry */
+  icon?: string;
+  /** Whether this nav item is disabled */
+  disabled?: boolean;
+  /** Whether this item requires auth */
+  requiresAuth?: boolean;
+  /** Badge text (e.g., "New", "Beta") */
+  badge?: string;
+  /** Badge variant */
+  badgeVariant?: "default" | "secondary" | "destructive" | "outline";
+}
+
+export interface NavGroup {
+  /** Group title (shown as section header in sidebar) */
+  title: string;
+  /** Group items */
+  items: NavItem[];
+}
+
+export interface DashboardConfig {
+  /** Top navigation bar items */
+  mainNav: NavItem[];
+  /** Sidebar navigation (flat or grouped) */
+  sidebarNav: NavItem[];
+  /** Grouped sidebar navigation (alternative to flat sidebarNav) */
+  sidebarGroups?: NavGroup[];
+}
+
+// ─── Configuration ───────────────────────────────────────────────────────────
+
+export const dashboardConfig: DashboardConfig = {
+  mainNav: [
+    {
+      title: "Documentation",
+      href: "/docs",
+    },
+    {
+      title: "Support",
+      href: "/support",
+      disabled: true,
+    },
+  ],
+
+  sidebarNav: [
+    {
+      title: "Dashboard",
+      href: "/dashboard",
+      icon: "dashboard",
+    },
+    {
+      title: "Chat",
+      href: "/dashboard/chat",
+      icon: "messageSquare",
+    },
+    {
+      title: "Documents",
+      href: "/dashboard/documents",
+      icon: "fileText",
+    },
+    {
+      title: "Settings",
+      href: "/dashboard/settings",
+      icon: "settings",
+    },
+  ],
+
+  // Alternative: grouped navigation
+  sidebarGroups: [
+    {
+      title: "Overview",
+      items: [
+        { title: "Dashboard", href: "/dashboard", icon: "dashboard" },
+        { title: "Analytics", href: "/dashboard/analytics", icon: "barChart" },
+      ],
+    },
+    {
+      title: "AI Tools",
+      items: [
+        { title: "Chat", href: "/dashboard/chat", icon: "messageSquare" },
+        {
+          title: "Documents",
+          href: "/dashboard/documents",
+          icon: "fileText",
+        },
+        {
+          title: "Knowledge Base",
+          href: "/dashboard/knowledge",
+          icon: "book",
+          badge: "Beta",
+          badgeVariant: "secondary",
+        },
+      ],
+    },
+    {
+      title: "Settings",
+      items: [
+        { title: "Profile", href: "/dashboard/profile", icon: "user" },
+        { title: "Settings", href: "/dashboard/settings", icon: "settings" },
+      ],
+    },
+  ],
+};
+
+export default dashboardConfig;

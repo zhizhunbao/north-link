@@ -1,0 +1,67 @@
+/**
+ * App Sidebar
+ *
+ * Main application sidebar with header (team/brand), navigation groups, and user menu.
+ *
+ * @source shadcn-admin
+ * @requires shadcn/ui sidebar
+ * @i18n Replace nav titles with t() calls
+ *
+ * @example
+ * // In layout component
+ * <SidebarProvider>
+ *   <AppSidebar />
+ *   <main>{children}</main>
+ * </SidebarProvider>
+ */
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarRail,
+} from '{{alias}}/shared/components/ui/sidebar'
+import { NavGroup } from './nav-group'
+import { NavUser } from './nav-user'
+// import { TeamSwitcher } from './team-switcher'
+import type { SidebarData } from './types'
+
+type AppSidebarProps = {
+  data: SidebarData
+  collapsible?: 'icon' | 'offcanvas' | 'none'
+  variant?: 'sidebar' | 'floating' | 'inset'
+}
+
+export function AppSidebar({
+  data,
+  collapsible = 'icon',
+  variant = 'sidebar',
+}: AppSidebarProps) {
+  return (
+    <Sidebar collapsible={collapsible} variant={variant}>
+      <SidebarHeader>
+        {/* Option 1: Team Switcher */}
+        {/* <TeamSwitcher teams={data.teams} /> */}
+
+        {/* Option 2: Simple App Title */}
+        <div className="flex h-12 items-center gap-2 px-4">
+          <div className="h-6 w-6 rounded-md bg-primary" /> {/* Replace with your logo */}
+          <span className="font-semibold">App Name</span>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        {data.navGroups.map((props) => (
+          <NavGroup key={props.title} {...props} />
+        ))}
+      </SidebarContent>
+
+      <SidebarFooter>
+        <NavUser user={data.user} />
+      </SidebarFooter>
+
+      <SidebarRail />
+    </Sidebar>
+  )
+}
+

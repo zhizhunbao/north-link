@@ -1,0 +1,176 @@
+/**
+ * DataTableSkeleton - Loading skeleton for data tables
+ *
+ * @module shared/components/data-table/skeleton
+ * @source shadcn-admin/src/components/data-table/ (pattern) + shadcn/ui skeleton
+ * @reference https://github.com/satnaing/shadcn-admin
+ * @template S2-M1-F5
+ *
+ * Features:
+ * - Configurable rows and columns count
+ * - Animated pulse shimmer effect
+ * - Header row with different widths
+ * - Optional toolbar skeleton (search + filters)
+ * - Optional pagination skeleton
+ * - Matches real table layout for smooth loading → content transition
+ *
+ * Usage:
+ * ```tsx
+ * // Basic table skeleton
+ * <DataTableSkeleton columns={5} rows={10} />
+ *
+ * // With toolbar and pagination
+ * <DataTableSkeleton
+ *   columns={4}
+ *   rows={8}
+ *   showToolbar
+ *   showPagination
+ * />
+ *
+ * // Custom cell widths
+ * <DataTableSkeleton
+ *   columns={3}
+ *   rows={5}
+ *   columnWidths={["40%", "35%", "25%"]}
+ * />
+ * ```
+ */
+
+import * as React from "react";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface DataTableSkeletonProps {
+  /** Number of columns */
+  columns?: number;
+  /** Number of rows */
+  rows?: number;
+  /** Custom width for each column (CSS values) */
+  columnWidths?: string[];
+  /** Show toolbar skeleton (search + filter buttons) */
+  showToolbar?: boolean;
+  /** Show pagination skeleton */
+  showPagination?: boolean;
+  /** Additional CSS class for the container */
+  className?: string;
+}
+
+// ─── Skeleton Primitive ──────────────────────────────────────────────────────
+
+const Skeleton: React.FC<{
+  className?: string;
+  style?: React.CSSProperties;
+}> = ({ className = "", style }) => (
+  <div
+    className={`animate-pulse rounded-md bg-[var(--color-muted)] ${className}`}
+    style={style}
+  />
+);
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export const DataTableSkeleton: React.FC<DataTableSkeletonProps> = ({
+  columns = 4,
+  rows = 10,
+  columnWidths,
+  showToolbar = true,
+  showPagination = true,
+  className = "",
+}) => {
+  // Default column widths: first column wider, rest evenly distributed
+  const defaultWidths = React.useMemo(() => {
+    const widths: string[] = [];
+    for (let i = 0; i < columns; i++) {
+      widths.push(i === 0 ? "40%" : `${60 / (columns - 1)}%`);
+    }
+    return widths;
+  }, [columns]);
+
+  const widths = columnWidths || defaultWidths;
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      {/* Toolbar skeleton */}
+      {showToolbar && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {/* Search input skeleton */}
+            <Skeleton className="h-9 w-[250px]" />
+            {/* Filter button skeletons */}
+            <Skeleton className="h-9 w-[90px]" />
+            <Skeleton className="h-9 w-[90px]" />
+          </div>
+          <div className="flex items-center gap-2">
+            {/* View options skeleton */}
+            <Skeleton className="h-9 w-[100px]" />
+          </div>
+        </div>
+      )}
+
+      {/* Table skeleton */}
+      <div className="rounded-md border border-[var(--color-border)]">
+        {/* Header row */}
+        <div className="flex items-center border-b border-[var(--color-border)] bg-[var(--color-muted)]/50 px-4 py-3">
+          {Array.from({ length: columns }).map((_, colIdx) => (
+            <div
+              key={`header-${colIdx}`}
+              className="flex-1 px-2"
+              style={{
+                maxWidth: widths[colIdx] || "auto",
+                flexBasis: widths[colIdx] || "auto",
+              }}
+            >
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ))}
+        </div>
+
+        {/* Data rows */}
+        {Array.from({ length: rows }).map((_, rowIdx) => (
+          <div
+            key={`row-${rowIdx}`}
+            className="flex items-center border-b border-[var(--color-border)] px-4 py-3 last:border-b-0"
+          >
+            {Array.from({ length: columns }).map((_, colIdx) => (
+              <div
+                key={`cell-${rowIdx}-${colIdx}`}
+                className="flex-1 px-2"
+                style={{
+                  maxWidth: widths[colIdx] || "auto",
+                  flexBasis: widths[colIdx] || "auto",
+                }}
+              >
+                <Skeleton
+                  className="h-4"
+                  style={{
+                    // Vary widths for realistic look
+                    width: `${55 + ((rowIdx * 7 + colIdx * 13) % 40)}%`,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination skeleton */}
+      {showPagination && (
+        <div className="flex items-center justify-between px-2">
+          <Skeleton className="h-4 w-[120px]" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-8 rounded-md" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+            <Skeleton className="h-4 w-[80px]" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+DataTableSkeleton.displayName = "DataTableSkeleton";
+
+export { Skeleton };
+export default DataTableSkeleton;

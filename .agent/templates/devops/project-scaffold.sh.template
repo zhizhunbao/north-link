@@ -1,0 +1,291 @@
+#!/usr/bin/env bash
+# Project Scaffold - Post-generation initialization script
+#
+# @module devops/project-scaffold
+# @source cookiecutter-django/hooks/post_gen_project.py (584L)
+# @source cookiecutter-django/hooks/pre_gen_project.py (33L)
+# @source full-stack-fastapi-template/copier.yml (101L)
+# @reference https://github.com/cookiecutter/cookiecutter-django
+# @reference https://github.com/fastapi/full-stack-fastapi-template
+# @template S7-M1-F2
+#
+# Post-generation hook script that:
+# 1. Validates project configuration
+# 2. Generates secure secrets (SECRET_KEY, DB passwords)
+# 3. Creates .env files for local/production
+# 4. Removes unused files based on user choices
+# 5. Initializes git repository
+# 6. Installs dependencies
+#
+# Usage: Run automatically after cookiecutter/copier project generation
+#   or manually: bash project-scaffold.sh --project-name "My App"
+#
+# Key patterns from cookiecutter-django:
+# - Conditional file removal based on user choices
+# - Secure random string generation for secrets
+# - Environment-specific .env file management
+# - CI/CD config cleanup (Travis/GitLab/GitHub/Drone)
+
+set -euo pipefail
+
+# ─── Configuration ───────────────────────────────────────────────────────────
+
+TERMINATOR="\033[0m"
+WARNING="\033[1;33m [WARNING]: "
+INFO="\033[1;33m [INFO]: "
+SUCCESS="\033[1;32m [SUCCESS]: "
+
+PROJECT_NAME="${1:-{{ cookiecutter.project_name }}}"
+PROJECT_SLUG="${2:-{{ cookiecutter.project_slug }}}"
+USE_DOCKER="${USE_DOCKER:-y}"
+BACKEND_FRAMEWORK="${BACKEND_FRAMEWORK:-FastAPI}"
+FRONTEND_FRAMEWORK="${FRONTEND_FRAMEWORK:-React (Vite)}"
+DATABASE="${DATABASE:-PostgreSQL}"
+CI_TOOL="${CI_TOOL:-GitHub Actions}"
+OPEN_SOURCE_LICENSE="${OPEN_SOURCE_LICENSE:-MIT}"
+USE_CELERY="${USE_CELERY:-n}"
+USE_ASYNC="${USE_ASYNC:-y}"
+
+# ─── Helper Functions ────────────────────────────────────────────────────────
+
+# @source cookiecutter-django/hooks/post_gen_project.py (256-276L)
+# Generate cryptographically secure random string
+generate_secret() {
+  local length="${1:-64}"
+  python3 -c "import secrets; print(secrets.token_urlsafe(${length}))" 2>/dev/null \
+    || openssl rand -base64 "${length}" | tr -d '/+=' | head -c "${length}"
+}
+
+# @source cookiecutter-django/hooks/post_gen_project.py (279-298L)
+# Replace placeholder flag in file with generated or provided value
+set_flag() {
+  local file_path="$1"
+  local flag="$2"
+  local value="${3:-$(generate_secret 48)}"
+
+  if [ -f "$file_path" ]; then
+    sed -i "s|${flag}|${value}|g" "$file_path"
+    echo -e "${INFO}Set ${flag} in ${file_path}${TERMINATOR}"
+  fi
+}
+
+# Safely remove file or directory
+safe_remove() {
+  local path="$1"
+  if [ -e "$path" ]; then
+    rm -rf "$path"
+    echo -e "${INFO}Removed: ${path}${TERMINATOR}"
+  fi
+}
+
+# ─── Pre-generation Validation ───────────────────────────────────────────────
+# @source cookiecutter-django/hooks/pre_gen_project.py (18-32L)
+
+validate_project() {
+  echo -e "${INFO}Validating project configuration...${TERMINATOR}"
+
+  # Validate project slug is a valid Python identifier
+  if ! python3 -c "assert '${PROJECT_SLUG}'.isidentifier(), 'Invalid slug'" 2>/dev/null; then
+    echo -e "${WARNING}Project slug '${PROJECT_SLUG}' is not a valid identifier${TERMINATOR}"
+    exit 1
+  fi
+
+  # Validate slug is lowercase
+  if [ "${PROJECT_SLUG}" != "$(echo "${PROJECT_SLUG}" | tr '[:upper:]' '[:lower:]')" ]; then
+    echo -e "${WARNING}Project slug should be all lowercase${TERMINATOR}"
+    exit 1
+  fi
+
+  echo -e "${SUCCESS}Validation passed${TERMINATOR}"
+}
+
+# ─── Generate Secrets ────────────────────────────────────────────────────────
+# @source cookiecutter-django/hooks/post_gen_project.py (301-357L)
+
+generate_secrets() {
+  echo -e "${INFO}Generating secure secrets...${TERMINATOR}"
+
+  local secret_key
+  secret_key=$(generate_secret 64)
+
+  local postgres_password
+  postgres_password=$(generate_secret 32)
+
+  local redis_password
+  redis_password=$(generate_secret 32)
+
+  # Set secrets in environment files
+  if [ -f ".env" ]; then
+    set_flag ".env" "!!!GENERATE_SECRET_KEY!!!" "${secret_key}"
+    set_flag ".env" "!!!GENERATE_POSTGRES_PASSWORD!!!" "${postgres_password}"
+  fi
+
+  if [ -d ".envs" ]; then
+    # Local environment
+    set_flag ".envs/.local/.django" "!!!SET_DJANGO_SECRET_KEY!!!" "${secret_key}"
+    set_flag ".envs/.local/.postgres" "!!!SET_POSTGRES_USER!!!" "${PROJECT_SLUG}"
+    set_flag ".envs/.local/.postgres" "!!!SET_POSTGRES_PASSWORD!!!" "${postgres_password}"
+
+    # Production environment — use different secrets
+    local prod_secret_key
+    prod_secret_key=$(generate_secret 64)
+    set_flag ".envs/.production/.django" "!!!SET_DJANGO_SECRET_KEY!!!" "${prod_secret_key}"
+    set_flag ".envs/.production/.django" "!!!SET_DJANGO_ADMIN_URL!!!" "$(generate_secret 32)/"
+    set_flag ".envs/.production/.postgres" "!!!SET_POSTGRES_USER!!!" "${PROJECT_SLUG}"
+    set_flag ".envs/.production/.postgres" "!!!SET_POSTGRES_PASSWORD!!!" "$(generate_secret 64)"
+  fi
+
+  echo -e "${SUCCESS}Secrets generated successfully${TERMINATOR}"
+}
+
+# ─── Remove Unused Files ────────────────────────────────────────────────────
+# @source cookiecutter-django/hooks/post_gen_project.py (416-512L)
+
+cleanup_files() {
+  echo -e "${INFO}Cleaning up unused files...${TERMINATOR}"
+
+  # --- License files ---
+  if [ "${OPEN_SOURCE_LICENSE}" = "Not open source" ]; then
+    safe_remove "LICENSE"
+    safe_remove "CONTRIBUTORS.txt"
+  fi
+  if [ "${OPEN_SOURCE_LICENSE}" != "GPL-3.0" ]; then
+    safe_remove "COPYING"
+  fi
+
+  # --- Docker files ---
+  if [ "${USE_DOCKER}" = "n" ]; then
+    safe_remove "compose"
+    safe_remove "docker-compose.yml"
+    safe_remove "docker-compose.local.yml"
+    safe_remove "docker-compose.production.yml"
+    safe_remove ".dockerignore"
+    safe_remove "Dockerfile"
+    safe_remove ".devcontainer"
+  fi
+
+  # --- CI/CD files ---
+  if [ "${CI_TOOL}" != "GitHub Actions" ]; then
+    safe_remove ".github/workflows"
+  fi
+  if [ "${CI_TOOL}" != "GitLab CI" ]; then
+    safe_remove ".gitlab-ci.yml"
+  fi
+  if [ "${CI_TOOL}" != "Travis" ]; then
+    safe_remove ".travis.yml"
+  fi
+
+  # --- Backend framework cleanup ---
+  if [ "${BACKEND_FRAMEWORK}" != "Django" ]; then
+    safe_remove "manage.py"
+    safe_remove "${PROJECT_SLUG}/wsgi.py"
+  fi
+
+  # --- Frontend cleanup ---
+  if [ "${FRONTEND_FRAMEWORK}" = "None" ]; then
+    safe_remove "frontend"
+    safe_remove "package.json"
+    safe_remove "package-lock.json"
+    safe_remove "tsconfig.json"
+    safe_remove "vite.config.ts"
+  fi
+
+  # --- Database cleanup ---
+  if [ "${DATABASE}" = "None" ]; then
+    safe_remove "alembic"
+    safe_remove "alembic.ini"
+    safe_remove "migrations"
+  fi
+
+  # --- Optional features ---
+  if [ "${USE_CELERY}" = "n" ]; then
+    safe_remove "celery_app.py"
+    safe_remove "${PROJECT_SLUG}/tasks"
+    safe_remove "compose/local/django/celery" 2>/dev/null || true
+    safe_remove "compose/production/django/celery" 2>/dev/null || true
+  fi
+
+  if [ "${USE_ASYNC}" = "n" ]; then
+    safe_remove "config/asgi.py"
+    safe_remove "config/websocket.py"
+  fi
+
+  echo -e "${SUCCESS}Cleanup complete${TERMINATOR}"
+}
+
+# ─── Initialize Git Repository ──────────────────────────────────────────────
+
+init_git() {
+  echo -e "${INFO}Initializing git repository...${TERMINATOR}"
+
+  if [ ! -d ".git" ]; then
+    git init -b main
+    git add .
+    git commit -m "Initial project scaffold from template"
+    echo -e "${SUCCESS}Git repository initialized${TERMINATOR}"
+  else
+    echo -e "${INFO}Git repository already exists, skipping${TERMINATOR}"
+  fi
+}
+
+# ─── Install Dependencies ───────────────────────────────────────────────────
+# @source cookiecutter-django/hooks/post_gen_project.py (515-579L)
+
+install_dependencies() {
+  echo -e "${INFO}Installing dependencies...${TERMINATOR}"
+
+  # Python dependencies
+  if command -v uv &>/dev/null; then
+    echo -e "${INFO}Using uv for Python dependency management${TERMINATOR}"
+    uv sync
+  elif command -v pip &>/dev/null; then
+    echo -e "${INFO}Using pip for Python dependency management${TERMINATOR}"
+    pip install -r requirements.txt 2>/dev/null || pip install -e ".[dev]" 2>/dev/null || true
+  fi
+
+  # Frontend dependencies
+  if [ -f "package.json" ]; then
+    if command -v pnpm &>/dev/null; then
+      echo -e "${INFO}Using pnpm for frontend dependencies${TERMINATOR}"
+      pnpm install
+    elif command -v npm &>/dev/null; then
+      echo -e "${INFO}Using npm for frontend dependencies${TERMINATOR}"
+      npm install
+    fi
+  fi
+
+  echo -e "${SUCCESS}Dependencies installed${TERMINATOR}"
+}
+
+# ─── Main Execution ─────────────────────────────────────────────────────────
+
+main() {
+  echo ""
+  echo "╔═══════════════════════════════════════════════╗"
+  echo "║     🚀 Project Scaffold Initialization       ║"
+  echo "║          ${PROJECT_NAME}                      "
+  echo "╚═══════════════════════════════════════════════╝"
+  echo ""
+
+  validate_project
+  generate_secrets
+  cleanup_files
+  install_dependencies
+  init_git
+
+  echo ""
+  echo -e "${SUCCESS}Project '${PROJECT_NAME}' initialized successfully!${TERMINATOR}"
+  echo ""
+  echo "  Next steps:"
+  echo "    1. cd ${PROJECT_SLUG}"
+  echo "    2. Review .env and update any 'changethis' values"
+  if [ "${USE_DOCKER}" = "y" ]; then
+    echo "    3. docker compose up -d"
+  else
+    echo "    3. python -m uvicorn app.main:app --reload"
+  fi
+  echo "    4. Open http://localhost:8000"
+  echo ""
+}
+
+main "$@"

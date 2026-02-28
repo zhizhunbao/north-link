@@ -1,0 +1,64 @@
+/**
+ * Hero - Landing page hero section with dual-column layout (text + cards)
+ *
+ * @source shadcn-landing-page/src/components/Hero.tsx
+ * @reference https://github.com/leoMirandaa/shadcn-landing-page
+ * @requires shadcn/ui button
+ * @requires ./hero-cards (optional side content)
+ * @i18n Replace text with t() calls
+ *
+ * @example
+ * <Hero />
+ */
+import { Button, buttonVariants } from "{{ALIAS}}/components/ui/button";
+import { HeroCards } from "./hero-cards";
+
+export const Hero = () => {
+  return (
+    <section className="container grid lg:grid-cols-2 place-items-center py-20 md:py-32 gap-10">
+      <div className="text-center lg:text-start space-y-6">
+        <main className="text-5xl md:text-6xl font-bold">
+          <h1 className="inline">
+            <span className="inline bg-gradient-to-r from-[#F596D3] to-[#D247BF] text-transparent bg-clip-text">
+              {{HERO_HIGHLIGHT_1}}
+            </span>{" "}
+            {{HERO_TITLE_1}}
+          </h1>{" "}
+          {{HERO_CONNECTOR}}{" "}
+          <h2 className="inline">
+            <span className="inline bg-gradient-to-r from-[#61DAFB] via-[#1fc0f1] to-[#03a3d7] text-transparent bg-clip-text">
+              {{HERO_HIGHLIGHT_2}}
+            </span>{" "}
+            {{HERO_TITLE_2}}
+          </h2>
+        </main>
+
+        <p className="text-xl text-muted-foreground md:w-10/12 mx-auto lg:mx-0">
+          {{HERO_DESCRIPTION}}
+        </p>
+
+        <div className="space-y-4 md:space-y-0 md:space-x-4">
+          <Button className="w-full md:w-1/3">Get Started</Button>
+
+          <a
+            rel="noreferrer noopener"
+            href="#features"
+            className={`w-full md:w-1/3 ${buttonVariants({
+              variant: "outline",
+            })}`}
+          >
+            Learn More
+          </a>
+        </div>
+      </div>
+
+      {/* Hero cards sections */}
+      <div className="z-10">
+        <HeroCards />
+      </div>
+
+      {/* Shadow effect */}
+      <div className="shadow"></div>
+    </section>
+  );
+};

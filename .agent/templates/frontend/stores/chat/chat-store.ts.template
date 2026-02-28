@@ -1,0 +1,157 @@
+/**
+ * Chat Store - Zustand store entry point combining all slices
+ *
+ * Aggregates message, topic, and AI chat slices into a single store
+ * using the Zustand slice pattern. Includes devtools middleware for
+ * Redux DevTools debugging and subscribeWithSelector for granular subscriptions.
+ *
+ * @module stores/chat
+ * @source lobe-chat/src/store/chat/store.ts (84 lines) — slice aggregation pattern
+ * @source lobe-chat/src/store/chat/index.ts (4 lines) — public exports
+ * @source lobe-chat/src/store/middleware/createDevtools.ts (24 lines) — devtools factory
+ * @source lobe-chat/src/store/utils/flattenActions.ts (53 lines) — class→object flattener
+ * @reference https://github.com/lobehub/lobe-chat
+ * @template S1-M4-1 frontend/stores/chat/chat-store.ts
+ */
+
+import { subscribeWithSelector } from 'zustand/middleware'
+import { devtools } from 'zustand/middleware'
+import { shallow } from 'zustand/shallow'
+import { createWithEqualityFn } from 'zustand/traditional'
+import { type StateCreator } from 'zustand/vanilla'
+
+import type { ChatStore } from './types'
+
+import { initialMessageState, createMessageSlice } from './message-slice'
+import { initialTopicState, createTopicSlice } from './topic-slice'
+import { initialAiChatState, createAiChatSlice } from './ai-chat-slice'
+
+// ============================================================
+// Combined Initial State
+// ============================================================
+
+/**
+ * Aggregate initial state from all slices.
+ *
+ * @source lobe-chat initialState.ts — merges all slice initial states
+ */
+const initialState = {
+  ...initialMessageState,
+  ...initialTopicState,
+  ...initialAiChatState,
+}
+
+// ============================================================
+// Store Creator
+// ============================================================
+
+/**
+ * Create the combined store by spreading all slice creators.
+ *
+ * Pattern from lobe-chat/store/chat/store.ts:
+ * - Each slice is a StateCreator that receives (set, get, api) params
+ * - Slices are spread into a single object with initialState
+ * - lobe-chat uses `flattenActions` for class instances; here we use
+ *   functional slices that return plain objects directly
+ *
+ * @source lobe-chat store.ts lines 50-69
+ */
+const createStore: StateCreator<ChatStore, [['zustand/devtools', never]]> = (
+  ...params
+) => ({
+  ...initialState,
+  ...createMessageSlice(...params),
+  ...createTopicSlice(...params),
+  ...createAiChatSlice(...params),
+})
+
+// ============================================================
+// Devtools Configuration
+// ============================================================
+
+/**
+ * Conditional devtools middleware.
+ *
+ * Enable via URL param `?debug=chat` in development.
+ *
+ * @source lobe-chat middleware/createDevtools.ts
+ */
+function createChatDevtools() {
+  const isDev = process.env.NODE_ENV === 'development'
+
+  let showDevtools = isDev
+
+  // Check URL param for selective devtools (like lobe-chat)
+  if (typeof window !== 'undefined') {
+    const url = new URL(window.location.href)
+    const debug = url.searchParams.get('debug')
+    if (debug?.includes('chat')) showDevtools = true
+  }
+
+  return showDevtools
+    ? devtools
+    : // No-op passthrough when devtools disabled
+      ((fn: any) => fn) as typeof devtools
+}
+
+// ============================================================
+// Export: useChatStore
+// ============================================================
+
+/**
+ * The main chat store hook.
+ *
+ * Uses `createWithEqualityFn` + `shallow` for performance —
+ * components only re-render when selected state actually changes.
+ *
+ * @source lobe-chat store.ts lines 74-77
+ *
+ * @example
+ * ```tsx
+ * // Select specific state (shallow comparison)
+ * const messages = useChatStore((s) => s.messagesMap[activeKey])
+ * const sendMessage = useChatStore((s) => s.sendMessage)
+ *
+ * // Select multiple values
+ * const { inputMessage, updateMessageInput } = useChatStore(
+ *   (s) => ({
+ *     inputMessage: s.inputMessage,
+ *     updateMessageInput: s.updateMessageInput,
+ *   }),
+ *   shallow
+ * )
+ * ```
+ */
+export const useChatStore = createWithEqualityFn<ChatStore>()(
+  subscribeWithSelector(createChatDevtools()(createStore)),
+  shallow
+)
+
+/**
+ * Get store state outside of React components.
+ *
+ * @source lobe-chat store.ts line 83
+ *
+ * @example
+ * ```ts
+ * // In a service or utility
+ * const state = getChatStoreState()
+ * console.log(state.activeTopicId)
+ * ```
+ */
+export const getChatStoreState = () => useChatStore.getState()
+
+// ============================================================
+// Debug: Expose for DevTools
+// ============================================================
+
+if (typeof window !== 'undefined') {
+  ;(window as any).__CHAT_STORE__ = useChatStore
+}
+
+// ============================================================
+// Re-exports
+// ============================================================
+
+export type { ChatStore } from './types'
+export type { ChatMessage, ChatTopic, MessageRole, AIChatSliceActions } from './types'

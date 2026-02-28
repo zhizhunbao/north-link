@@ -1,0 +1,26 @@
+import uuid
+from typing import Any
+from sqlmodel import Session
+
+# from app.models import Item, ItemCreate, ItemUpdate
+
+def create_item(*, session: Session, item_in: Any, owner_id: uuid.UUID) -> Any:
+    """
+    A14. 通用 CRUD (纯函数式).
+    出处: full-stack-fastapi-template
+    """
+    # db_item = Item.model_validate(item_in, update={"owner_id": owner_id})
+    # session.add(db_item)
+    # session.commit()
+    # session.refresh(db_item)
+    # return db_item
+    pass
+
+def update_item(*, session: Session, db_item: Any, item_in: Any) -> Any:
+    # update_data = item_in.model_dump(exclude_unset=True)
+    # db_item.sqlmodel_update(update_data)
+    # session.add(db_item)
+    # session.commit()
+    # session.refresh(db_item)
+    # return db_item
+    pass

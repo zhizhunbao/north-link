@@ -1,0 +1,19 @@
+from typing import Annotated
+from fastapi import Depends
+from app.core.database import get_db
+
+# 1. Annotated 类型别名
+# SessionDep = Annotated[Session, Depends(get_db)]
+# CurrentUser = Annotated[User, Depends(get_current_user)]
+
+# 2. 实体验证依赖 (链式)
+async def valid_{{feature_name}}_id(id: str) -> dict:
+    """
+    A10. 依赖注入 (链式验证).
+    出处: fastapi-best-practices
+    """
+    # post = await service.get_by_id(id)
+    # if not post:
+    #     raise PostNotFound()
+    # return post
+    pass

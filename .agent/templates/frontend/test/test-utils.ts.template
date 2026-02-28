@@ -1,0 +1,157 @@
+/**
+ * Test Utilities - Custom render with auto-wrapped Providers
+ *
+ * @module frontend/test/test-utils
+ * @source bulletproof-react/src/testing/test-utils.ts (custom render pattern)
+ * @reference https://github.com/alan2207/bulletproof-react
+ * @template S2-M3-F1
+ *
+ * Unified test render function that automatically wraps components with
+ * all app-level providers (QueryClient, Router, Auth, Theme).
+ * Eliminates repetitive provider wrapping in every test file.
+ *
+ * Usage:
+ *   import { renderApp, screen, userEvent } from './test-utils';
+ *   renderApp(<MyComponent />, { route: '/dashboard' });
+ */
+
+import React, { type ReactElement } from "react";
+import {
+  render,
+  type RenderOptions,
+  type RenderResult,
+  screen,
+  within,
+  waitFor,
+  waitForElementToBeRemoved,
+  act,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
+
+// ─── Re-exports ─────────────────────────────────────────────────────────────
+
+export { screen, within, waitFor, waitForElementToBeRemoved, act, userEvent };
+
+// ─── Test Query Client ──────────────────────────────────────────────────────
+
+function createTestQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: Infinity,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+    // Suppress console.error for expected errors in tests
+    logger: {
+      log: console.log,
+      warn: console.warn,
+      error: () => {},
+    },
+  });
+}
+
+// ─── All Providers Wrapper ──────────────────────────────────────────────────
+// @source bulletproof-react — creates a single wrapper that combines all providers
+
+export interface AppRenderOptions extends Omit<RenderOptions, "wrapper"> {
+  /** Initial route path */
+  route?: string;
+  /** Initial route entries */
+  routeHistory?: string[];
+  /** Custom query client (auto-created if not provided) */
+  queryClient?: QueryClient;
+  /** Mock user for auth context */
+  user?: { id: string; name: string; email: string } | null;
+}
+
+function createWrapper(options: AppRenderOptions = {}) {
+  const {
+    route = "/",
+    routeHistory,
+    queryClient = createTestQueryClient(),
+    user = null,
+  } = options;
+
+  const initialEntries = routeHistory ?? [route];
+
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={initialEntries}>
+          {/* TODO: Add your AuthProvider here */}
+          {/* <AuthProvider user={user}> */}
+          {children}
+          {/* </AuthProvider> */}
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+  };
+}
+
+// ─── Custom Render ──────────────────────────────────────────────────────────
+
+/**
+ * Custom render that wraps the component in all app providers.
+ *
+ * @example
+ * ```ts
+ * test('renders dashboard', async () => {
+ *   const { getByText } = renderApp(<Dashboard />, { route: '/dashboard' });
+ *   expect(getByText('Welcome')).toBeInTheDocument();
+ * });
+ * ```
+ */
+export function renderApp(
+  ui: ReactElement,
+  options: AppRenderOptions = {}
+): RenderResult & { user: ReturnType<typeof userEvent.setup> } {
+  const user = userEvent.setup();
+  const result = render(ui, {
+    wrapper: createWrapper(options),
+    ...options,
+  });
+
+  return { ...result, user };
+}
+
+// ─── Utility Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Wait for loading indicators to disappear.
+ */
+export async function waitForLoadingToFinish(): Promise<void> {
+  await waitFor(
+    () => {
+      const loaders = [
+        ...screen.queryAllByTestId(/loading/i),
+        ...screen.queryAllByRole("progressbar"),
+        ...screen.queryAllByLabelText(/loading/i),
+      ];
+      if (loaders.length > 0) {
+        throw new Error("Still loading");
+      }
+    },
+    { timeout: 4000 }
+  );
+}
+
+/**
+ * Create a deferred promise for controlling async flow in tests.
+ */
+export function createDeferred<T = void>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+export default renderApp;

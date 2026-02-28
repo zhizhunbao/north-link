@@ -1,0 +1,55 @@
+"""
+A6. 通用文档存储服务 (Universal Document Store)
+
+出处参考: LangChain/Dify 模式.
+"""
+
+from typing import Any, Generic, TypeVar, Optional, Sequence
+from sqlalchemy import select, update, delete, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+
+T = TypeVar("T")
+
+class DocumentStore(Generic[T]):
+    """
+    核心模式: 关系型大表 + JSONB 元数据.
+    科学依据: 在数据 Schema 频繁变化的 AI 时代，通过 JSON 字段规避频繁的数据库迁移.
+    """
+
+    def __init__(self, db: AsyncSession, model: Any):
+        self.db = db
+        self.model = model
+
+    async def create(
+        self,
+        doc_type: str,
+        data: dict[str, Any],
+        owner_id: Optional[str] = None,
+        status: str = "active",
+        tags: Optional[list[str]] = None
+    ) -> dict[str, Any]:
+        new_doc = self.model(
+            type=doc_type,
+            data=data,
+            owner_id=owner_id,
+            status=status,
+            tags=tags or []
+        )
+        self.db.add(new_doc)
+        await self.db.flush()
+        return vars(new_doc)
+
+    async def get_by_id(self, doc_id: str) -> Optional[dict[str, Any]]:
+        stmt = select(self.model).where(self.model.id == doc_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_json_data(self, doc_id: str, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+        stmt = select(self.model).where(self.model.id == doc_id)
+        result = await self.db.execute(stmt)
+        doc = result.scalar_one_or_none()
+        if doc:
+            doc.data = data
+            await self.db.flush()
+            return doc
+        return None

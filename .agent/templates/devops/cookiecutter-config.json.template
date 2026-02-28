@@ -1,0 +1,117 @@
+{
+  "__comment__": {
+    "@module": "devops/cookiecutter-config",
+    "@source": "cookiecutter-django/cookiecutter.json (46L)",
+    "@source2": "full-stack-fastapi-template/copier.yml (101L)",
+    "@reference": "https://github.com/cookiecutter/cookiecutter-django",
+    "@reference2": "https://github.com/fastapi/full-stack-fastapi-template",
+    "@template": "S7-M1-F1",
+    "description": "Project scaffold configuration for cookiecutter / copier. Defines all interactive prompts, defaults, choices, and conditional logic for generating a new project from template."
+  },
+
+  "project_name": "My Awesome Project",
+  "project_slug": "{{ cookiecutter.project_name.lower()|replace(' ', '_')|replace('-', '_')|replace('.', '_')|trim() }}",
+  "project_description": "A brief description of the project.",
+  "author_name": "Your Name",
+  "author_email": "{{ cookiecutter.author_name.lower()|trim()|replace(' ', '-') }}@example.com",
+  "version": "0.1.0",
+  "domain_name": "example.com",
+
+  "open_source_license": [
+    "MIT",
+    "BSD-3-Clause",
+    "Apache-2.0",
+    "GPL-3.0",
+    "Not open source"
+  ],
+
+  "python_version": ["3.12", "3.11", "3.10"],
+
+  "backend_framework": ["FastAPI", "Django", "Flask"],
+
+  "frontend_framework": ["React (Vite)", "Next.js", "None"],
+
+  "database": ["PostgreSQL", "SQLite", "None"],
+  "postgresql_version": ["17", "16", "15", "14"],
+
+  "use_docker": "y",
+  "cloud_provider": ["None", "AWS", "GCP", "Azure"],
+
+  "use_async": "y",
+  "use_celery": "n",
+  "use_redis": "n",
+  "use_sentry": "n",
+
+  "ci_tool": ["GitHub Actions", "GitLab CI", "None"],
+
+  "editor": ["VS Code", "PyCharm", "None"],
+
+  "timezone": "UTC",
+
+  "mail_service": [
+    "None",
+    "Amazon SES",
+    "Mailgun",
+    "SendGrid",
+    "Other SMTP"
+  ],
+
+  "smtp_host": "",
+  "smtp_user": "",
+  "smtp_password": "",
+  "emails_from_email": "info@example.com",
+
+  "secret_key": "!!!GENERATE_SECRET_KEY!!!",
+  "first_superuser_email": "admin@example.com",
+  "first_superuser_password": "changethis",
+
+  "postgres_password": "!!!GENERATE_POSTGRES_PASSWORD!!!",
+
+  "sentry_dsn": "",
+
+  "keep_local_envs_in_vcs": "y",
+  "debug": "n",
+
+  "__prompts__": {
+    "project_name":              "What is your project name?",
+    "project_description":       "Brief project description:",
+    "author_name":               "Author name:",
+    "backend_framework":         "Backend framework:",
+    "frontend_framework":        "Frontend framework:",
+    "database":                  "Database:",
+    "use_docker":                "Use Docker? [y/n]:",
+    "cloud_provider":            "Cloud provider:",
+    "ci_tool":                   "CI/CD tool:",
+    "open_source_license":       "License:"
+  },
+
+  "__post_gen_hooks__": [
+    "Generate SECRET_KEY and POSTGRES_PASSWORD with secrets.token_urlsafe(32)",
+    "Remove unused license files based on open_source_license choice",
+    "Remove Docker files if use_docker == 'n'",
+    "Remove CI config files based on ci_tool choice",
+    "Remove async files if use_async == 'n'",
+    "Remove Celery files if use_celery == 'n'",
+    "Set environment variables in .env files",
+    "Initialize git repository",
+    "Install dependencies (uv sync / npm install)"
+  ],
+
+  "__copier_equivalent__": {
+    "_comment": "If using Copier instead of Cookiecutter, convert this to copier.yml format",
+    "_answers_file": ".copier/.copier-answers.yml",
+    "_exclude": [
+      ".vscode",
+      "__pycache__",
+      "*.pyc",
+      ".mypy_cache",
+      "node_modules",
+      "dist",
+      ".DS_Store",
+      "*.egg-info"
+    ],
+    "_tasks": [
+      "python .copier/update_dotenv.py"
+    ]
+  }
+}
