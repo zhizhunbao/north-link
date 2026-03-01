@@ -31,3 +31,15 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.15.4",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "unit: fast unit tests, no database required",
+    "integration: integration tests, require db-test container on port 5433",
+]
+# Run only unit tests by default; use -m integration for integration tests
+# Example: uv run pytest -m unit          (fast, no DB)
+#          uv run pytest -m integration   (needs docker-compose up db-test)
+#          uv run pytest                  (all)

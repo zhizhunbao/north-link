@@ -45,18 +45,16 @@ export function PriceCenterPage() {
   });
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
     priceService
       .getProducts(params)
       .then((res) => {
-        setProducts(res.data.items);
-        setTotal(res.data.total);
+        if (!cancelled) { setProducts(res.data.items); setTotal(res.data.total); setLoading(false); }
       })
       .catch(() => {
-        setProducts([]);
-        setTotal(0);
-      })
-      .finally(() => setLoading(false));
+        if (!cancelled) { setProducts([]); setTotal(0); setLoading(false); }
+      });
+    return () => { cancelled = true; };
   }, [params]);
 
   const toggleFavorite = (productId: string) => {

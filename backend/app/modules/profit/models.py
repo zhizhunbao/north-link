@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Numeric, String
+from sqlalchemy import DateTime, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,5 +25,6 @@ class ExchangeRate(Base):
         String(50), nullable=False, default="exchangerate-api.com"
     )
     fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False, default=lambda: datetime.now(timezone.utc)
     )

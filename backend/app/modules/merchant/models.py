@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    DateTime,
     ForeignKey,
     Integer,
     LargeBinary,
@@ -28,6 +29,7 @@ class MerchantCategory(Base):
     description: Mapped[str | None] = mapped_column(String(200), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
@@ -55,9 +57,11 @@ class Merchant(Base):
     tier: Mapped[str] = mapped_column(String(10), nullable=False, default="bronze")
     total_orders: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
@@ -92,9 +96,11 @@ class MerchantQuote(Base):
     price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="CNY")
     quoted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 

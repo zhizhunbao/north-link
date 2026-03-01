@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: northlink-db
+    environment:
+      POSTGRES_USER: northlink
+      POSTGRES_PASSWORD: northlink
+      POSTGRES_DB: northlink
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U northlink"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-test:
+    image: postgres:16-alpine
+    container_name: northlink-db-test
+    environment:
+      POSTGRES_USER: northlink
+      POSTGRES_PASSWORD: northlink
+      POSTGRES_DB: northlink_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data # in-memory, fast, no persistence needed
+
+  redis:
+    image: redis:7-alpine
+    container_name: northlink-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:

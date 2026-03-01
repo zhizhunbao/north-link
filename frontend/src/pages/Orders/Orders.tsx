@@ -125,18 +125,16 @@ function OrderTable({ orderType }: { orderType?: string }) {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
     orderService
       .getList({ page, page_size: 20, order_type: orderType })
       .then((res) => {
-        setOrders(res.data.items);
-        setTotal(res.data.total);
+        if (!cancelled) { setOrders(res.data.items); setTotal(res.data.total); setLoading(false); }
       })
       .catch(() => {
-        setOrders([]);
-        setTotal(0);
-      })
-      .finally(() => setLoading(false));
+        if (!cancelled) { setOrders([]); setTotal(0); setLoading(false); }
+      });
+    return () => { cancelled = true; };
   }, [page, orderType]);
 
   if (loading) {

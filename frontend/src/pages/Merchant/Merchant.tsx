@@ -42,6 +42,15 @@ export function MerchantPage() {
   const [editing, setEditing] = useState<Merchant | null>(null);
   const [form] = Form.useForm();
 
+  useEffect(() => {
+    let cancelled = false;
+    merchantService
+      .getList({ page: 1, page_size: 100 })
+      .then((res) => { if (!cancelled) { setMerchants(res.data.items); setLoading(false); } })
+      .catch(() => { if (!cancelled) { setMerchants([]); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, []);
+
   const fetchMerchants = () => {
     setLoading(true);
     merchantService
@@ -50,10 +59,6 @@ export function MerchantPage() {
       .catch(() => setMerchants([]))
       .finally(() => setLoading(false));
   };
-
-  useEffect(() => {
-    fetchMerchants();
-  }, []);
 
   const handleSave = async (values: Partial<Merchant>) => {
     try {
