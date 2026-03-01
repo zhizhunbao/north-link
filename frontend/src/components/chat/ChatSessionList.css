@@ -1,0 +1,87 @@
+/* Chat session sidebar styles — FE-002 */
+.chat-sessions {
+  width: 260px;
+  background: var(--bg-secondary, #141414);
+  border-right: 1px solid var(--border-color, #303030);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.chat-sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #303030);
+}
+
+.chat-sessions-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chat-sessions-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.chat-sessions-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-tertiary, #666);
+  font-size: 13px;
+}
+
+.chat-session-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.chat-session-item:hover {
+  background: var(--bg-hover, #1f1f1f);
+}
+
+.chat-session-item.active {
+  background: var(--primary-bg, rgba(22, 119, 255, 0.15));
+}
+
+.chat-session-title {
+  flex: 1;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-session-time {
+  font-size: 11px;
+  color: var(--text-tertiary, #666);
+  flex-shrink: 0;
+}
+
+.chat-session-delete {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chat-session-item:hover .chat-session-delete {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .chat-sessions {
+    width: 100%;
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color, #303030);
+  }
+}

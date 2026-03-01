@@ -1,9 +1,9 @@
 /**
- * Dashboard page — REC-003/004.
- * Shows daily TOP5 recommendations + stats cards.
+ * Dashboard page — REC-003/004 + V1.5 scraper stats.
+ * Shows daily TOP5 recommendations + stats cards + AI usage.
  */
 import { useEffect, useState } from "react";
-import { Card, Col, Row, Statistic, Tag, Spin, Empty } from "antd";
+import { Card, Col, Row, Statistic, Tag, Spin, Empty, Progress } from "antd";
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -11,8 +11,15 @@ import {
   CarOutlined,
   DollarOutlined,
   StarOutlined,
+  RobotOutlined,
+  BellOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
 import { api } from "../../services/api";
+import { scraperService } from "../../services/scraperService";
+import { notificationService } from "../../services/notificationService";
+import { subscriptionService } from "../../services/subscriptionService";
+import type { ScraperUsage, Subscription } from "../../types/chat";
 
 interface RecommendedProduct {
   product_id: string;
@@ -42,6 +49,9 @@ const RISK_COLORS: Record<string, string> = {
 export function DashboardPage() {
   const [data, setData] = useState<DailyRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [usage, setUsage] = useState<ScraperUsage | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [activeSubs, setActiveSubs] = useState(0);
 
   useEffect(() => {
     api
@@ -49,6 +59,22 @@ export function DashboardPage() {
       .then((res) => setData(res.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
+
+    // V1.5: fetch scraper stats
+    scraperService
+      .getUsage()
+      .then(setUsage)
+      .catch(() => {});
+    notificationService
+      .getUnreadCount()
+      .then(setUnreadCount)
+      .catch(() => {});
+    subscriptionService
+      .getAll()
+      .then((subs: Subscription[]) =>
+        setActiveSubs(subs.filter((s) => s.status === "active").length),
+      )
+      .catch(() => {});
   }, []);
 
   return (
@@ -57,7 +83,7 @@ export function DashboardPage() {
         <h1>Dashboard</h1>
       </div>
 
-      {/* Stats Cards */}
+      {/* V1.0 Stats Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card>
@@ -97,6 +123,59 @@ export function DashboardPage() {
               prefix={<DollarOutlined />}
               suffix="CAD"
               styles={{ content: { color: "var(--color-success)" } }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* V1.5 AI Usage Stats */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="今日 AI 采集次数"
+              value={usage?.today_count ?? 0}
+              suffix={`/ ${usage?.today_limit ?? 100}`}
+              prefix={<RobotOutlined />}
+            />
+            <Progress
+              percent={
+                usage
+                  ? Math.round((usage.today_count / usage.today_limit) * 100)
+                  : 0
+              }
+              size="small"
+              style={{ marginTop: 8 }}
+              strokeColor={
+                usage && usage.today_count > usage.today_limit * 0.8
+                  ? "#ff4d4f"
+                  : "#1677ff"
+              }
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8}>
+          <Card>
+            <Statistic
+              title="活跃订阅"
+              value={activeSubs}
+              suffix="/ 20"
+              prefix={<ThunderboltOutlined />}
+              styles={{ content: { color: "var(--color-warning)" } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8}>
+          <Card>
+            <Statistic
+              title="未读通知"
+              value={unreadCount}
+              prefix={<BellOutlined />}
+              styles={{
+                content: {
+                  color: unreadCount > 0 ? "#ff4d4f" : "inherit",
+                },
+              }}
             />
           </Card>
         </Col>

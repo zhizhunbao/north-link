@@ -1,0 +1,21 @@
+/* Chat page layout styles — FE-001 */
+.chat-page {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+/* Responsive: hide sidebar on mobile */
+@media (max-width: 768px) {
+  .chat-page {
+    flex-direction: column;
+  }
+}

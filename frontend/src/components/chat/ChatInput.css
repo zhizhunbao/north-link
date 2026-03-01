@@ -1,0 +1,34 @@
+/* Chat input styles — FE-004 */
+.chat-input-wrapper {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, #303030);
+  background: var(--bg-primary, #0a0a0a);
+}
+
+.chat-input-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.chat-input-textarea {
+  flex: 1;
+  border-radius: 12px !important;
+  resize: none !important;
+}
+
+.chat-input-send {
+  border-radius: 12px !important;
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.chat-input-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-tertiary, #666);
+  margin: 6px 0 0;
+}

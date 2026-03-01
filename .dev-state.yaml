@@ -2,131 +2,137 @@
 # 此文件由 /dev start 命令自动管理
 
 project: "North Link - 跨境货源通"
-started_at: "2026-02-28T12:12:08"
-current_phase: deployment
+version: "v1.5"
+started_at: "2026-03-01T00:38:00"
+current_phase: testing
 
 config:
   parallel_frontend_backend: false
   auto_check: true
-  docs_dir: docs
+  docs_dir: docs/v1.5/2026-03-01
+
+# 2026-03-01 00:38 — 需求和 PRD 被完全重写（从批量采集 → AI 对话驱动按需采集）
+# 旧的 phase-01/02/03 review 不再匹配当前文档，需全部重新审查
 
 phases:
   requirements:
     name: "需求分析"
     status: completed
-    started_at: "2026-02-28T12:12:08"
-    completed_at: "2026-02-28T12:16:00"
-    output: "docs/requirements/requirements.md"
-    review: "docs/reviews/phase-01-requirements.md"
+    started_at: "2026-03-01T00:38:00"
+    completed_at: "2026-03-01T00:40:00"
+    output: "docs/v1.5/2026-03-01/requirements/requirements.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-01-requirements.md"
     skill: "dev-product_manager"
     role: "product_manager"
+    notes: "重审通过 — 3 MEDIUM 问题延迟到后续阶段"
 
   prd:
     name: "PRD"
     status: completed
-    started_at: "2026-02-28T12:16:00"
-    completed_at: "2026-02-28T12:18:00"
-    output: "docs/requirements/prd.md"
-    review: "docs/reviews/phase-02-prd.md"
+    started_at: "2026-03-01T00:38:00"
+    completed_at: "2026-03-01T00:42:00"
+    output: "docs/v1.5/2026-03-01/requirements/prd.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-02-prd.md"
     skill: "dev-product_manager"
     role: "product_manager"
     depends_on: ["requirements"]
+    notes: "重审通过 — 3 MEDIUM 问题延迟到后续阶段; LLM 改为本地大模型(Ollama)"
 
   ux_design:
     name: "UX 设计"
     status: completed
-    started_at: "2026-02-28T12:18:28"
-    completed_at: "2026-02-28T12:51:00"
-    output: "docs/design/"
-    review: "docs/reviews/phase-03-ux-design.md"
+    started_at: "2026-03-01T00:50:00"
+    completed_at: "2026-03-01T00:52:00"
+    output: "docs/v1.5/2026-03-01/design/"
+    review: "docs/v1.5/2026-03-01/reviews/phase-03-ux-design.md"
     skill: "dev-ui_ux_designer"
     depends_on: ["prd"]
+    notes: "完全重新设计 — Chat UI 为核心入口，2 MEDIUM 延后"
 
   architecture:
     name: "系统架构"
     status: completed
-    started_at: "2026-02-28T13:01:39"
-    completed_at: "2026-02-28T13:12:00"
-    output: "docs/architecture/system-architecture.md"
-    review: "docs/reviews/phase-04-architecture.md"
+    started_at: "2026-03-01T00:55:00"
+    completed_at: "2026-03-01T00:56:00"
+    output: "docs/v1.5/2026-03-01/architecture/system-architecture.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-04-architecture.md"
     skill: "dev-senior_architect"
     role: "architect"
     depends_on: ["prd"]
+    notes: "通过 — 1 MEDIUM (Worker→SSE) 延后到 backend 阶段; 解决了 PRD/UX 的 4 个 MEDIUM"
 
   stories:
     name: "任务分解"
     status: completed
-    started_at: "2026-02-28T13:17:14"
-    completed_at: "2026-02-28T13:40:00"
-    output: "docs/sprints/sprint-plan.md"
-    review: "docs/reviews/phase-05-stories.md"
+    started_at: "2026-03-01T01:00:00"
+    completed_at: "2026-03-01T01:08:00"
+    output: "docs/v1.5/2026-03-01/sprints/sprint-plan.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-05-stories.md"
     skill: "dev-senior_fullstack"
     role: "tech_lead"
     depends_on: ["architecture"]
+    notes: "通过 — 52 stories, 120h; 2 MEDIUM (容量+前端详情) 不阻塞"
 
   database:
     name: "数据库设计"
     status: completed
-    started_at: "2026-02-28T13:44:34"
-    completed_at: "2026-02-28T13:48:00"
-    output: "docs/codemaps/database.md"
-    review: "docs/reviews/phase-06-database.md"
+    started_at: "2026-03-01T01:08:00"
+    completed_at: "2026-03-01T01:11:00"
+    output: "docs/v1.5/2026-03-01/codemaps/database.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-06-database.md"
     skill: "dev-senior_data_engineer"
     role: "architect"
     depends_on: ["architecture"]
+    notes: "通过 — 6新表+1扩展, 24检查项全部通过, 0问题"
 
   backend:
     name: "后端开发"
     status: completed
-    started_at: "2026-02-28T13:55:35"
-    completed_at: "2026-02-28T19:15:00"
+    started_at: "2026-03-01T01:12:00"
+    completed_at: "2026-03-01T01:20:00"
     output: "backend/app/"
-    review: "docs/reviews/phase-07-backend.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-07-backend.md"
     skill: "dev-senior_backend"
     role: "backend_engineer"
     depends_on: ["database", "stories"]
+    notes: "通过 — 24新文件+2修改, Sprint 1核心完成; 3 MEDIUM (后续Sprint工作) 不阻塞"
 
   frontend:
     name: "前端开发"
     status: completed
-    started_at: "2026-02-28T19:21:00"
-    completed_at: "2026-02-28T19:55:00"
+    started_at: "2026-03-01T01:22:00"
+    completed_at: "2026-03-01T01:31:00"
     output: "frontend/src/"
-    review: "docs/reviews/phase-08-frontend.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-08-frontend.md"
     skill: "dev-senior_frontend"
     role: "frontend_engineer"
     depends_on: ["stories"]
     can_parallel_with: ["backend"]
+    notes: "通过 — 20新文件+2修改, tsc 0 errors, ESLint 0 errors; 2 MEDIUM (后续Sprint) 不阻塞"
 
   testing:
     name: "测试"
-    status: completed
-    started_at: "2026-02-28T20:15:00"
-    completed_at: "2026-03-01T02:55:00"
-    output: "docs/test-report.md"
-    review: "docs/reviews/phase-09-testing.md"
+    status: pending
+    output: "docs/v1.5/2026-03-01/test-report.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-09-testing.md"
     skill: "dev-senior_qa"
     role: "qa_engineer"
     depends_on: ["backend", "frontend"]
 
   review:
     name: "代码审查"
-    status: completed
-    started_at: "2026-03-01T02:55:00"
-    completed_at: "2026-03-01T02:59:00"
-    output: "docs/review-report.md"
-    review: "docs/reviews/phase-10-review.md"
+    status: pending
+    output: "docs/v1.5/2026-03-01/review-report.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-10-review.md"
     skill: "dev-code_reviewer"
     role: "code_reviewer"
     depends_on: ["testing"]
 
   deployment:
     name: "部署"
-    status: completed
-    started_at: "2026-03-01T03:00:00"
-    completed_at: "2026-03-01T03:08:00"
+    status: pending
     output: "render.yaml"
-    review: "docs/reviews/phase-11-deployment.md"
+    review: "docs/v1.5/2026-03-01/reviews/phase-11-deployment.md"
     skill: "dev-senior_devops"
     role: "devops_engineer"
     depends_on: ["review"]

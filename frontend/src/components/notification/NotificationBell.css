@@ -1,0 +1,30 @@
+/* Notification bell & list styles — FE-020 */
+.notification-bell {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.notification-bell:hover {
+  background: var(--bg-hover, #1f1f1f);
+}
+
+.notification-item.unread {
+  background: var(--primary-bg, rgba(22, 119, 255, 0.05));
+}
+
+.notification-content {
+  font-size: 13px;
+  color: var(--text-secondary, #999);
+  margin: 4px 0;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: var(--text-tertiary, #666);
+}

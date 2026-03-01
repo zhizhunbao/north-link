@@ -6,16 +6,16 @@ import { NavLink } from "react-router-dom";
 import {
   DashboardOutlined,
   ShoppingOutlined,
-  TeamOutlined,
-  CarOutlined,
   SettingOutlined,
+  RobotOutlined,
+  BellOutlined,
 } from "@ant-design/icons";
 
 const MOBILE_ITEMS = [
+  { path: "/chat", icon: <RobotOutlined />, label: "AI" },
   { path: "/", icon: <DashboardOutlined />, label: "首页" },
   { path: "/prices", icon: <ShoppingOutlined />, label: "比价" },
-  { path: "/merchants", icon: <TeamOutlined />, label: "商户" },
-  { path: "/logistics", icon: <CarOutlined />, label: "物流" },
+  { path: "/subscriptions", icon: <BellOutlined />, label: "订阅" },
   { path: "/settings", icon: <SettingOutlined />, label: "设置" },
 ];
 

@@ -18,6 +18,8 @@ import { MerchantPage } from "./pages/Merchant/Merchant";
 import { LogisticsPage } from "./pages/Logistics/Logistics";
 import { OrdersPage } from "./pages/Orders/Orders";
 import { SettingsPage } from "./pages/Settings/Settings";
+import { ChatPage } from "./pages/Chat/Chat";
+import { SubscriptionsPage } from "./pages/Subscriptions/Subscriptions";
 
 function AppRoutes() {
   const restoreAuth = useAuthStore((s) => s.restoreAuth);
@@ -35,7 +37,9 @@ function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/chat" element={<ChatPage />} />
           <Route path="/prices" element={<PriceCenterPage />} />
+          <Route path="/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/merchants" element={<MerchantPage />} />
           <Route path="/logistics" element={<LogisticsPage />} />
           <Route path="/orders" element={<OrdersPage />} />

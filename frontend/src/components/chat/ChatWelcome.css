@@ -1,0 +1,77 @@
+/* Chat welcome styles — FE-005 */
+.chat-welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.chat-welcome-icon {
+  font-size: 48px;
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.chat-welcome h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.chat-welcome p {
+  color: var(--text-secondary, #999);
+  font-size: 14px;
+  max-width: 480px;
+  line-height: 1.6;
+  margin: 0 0 32px;
+}
+
+.chat-welcome-suggestions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 600px;
+  width: 100%;
+}
+
+.chat-welcome-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-secondary, #1f1f1f);
+  border: 1px solid var(--border-color, #303030);
+  border-radius: 12px;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.chat-welcome-suggestion:hover {
+  border-color: var(--primary-color, #1677ff);
+  background: var(--primary-bg, rgba(22, 119, 255, 0.08));
+}
+
+.suggestion-icon {
+  color: var(--primary-color, #1677ff);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .chat-welcome-suggestions {
+    grid-template-columns: 1fr;
+  }
+}

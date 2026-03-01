@@ -1,0 +1,14 @@
+/* Stream progress styles — FE-011 */
+.stream-progress {
+  padding: 16px 24px;
+  background: var(--bg-secondary, #1f1f1f);
+  border-radius: 12px;
+  margin: 0 24px 8px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.price-compare-table {
+  margin-top: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+}

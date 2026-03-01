@@ -12,7 +12,10 @@ import {
   FileTextOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  RobotOutlined,
+  BellOutlined,
 } from "@ant-design/icons";
+import { NotificationBell } from "../notification/NotificationBell";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -20,8 +23,10 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
+  { path: "/chat", icon: <RobotOutlined />, label: "AI 助手" },
   { path: "/", icon: <DashboardOutlined />, label: "Dashboard" },
   { path: "/prices", icon: <ShoppingOutlined />, label: "比价中心" },
+  { path: "/subscriptions", icon: <BellOutlined />, label: "订阅追踪" },
   { path: "/merchants", icon: <TeamOutlined />, label: "商户管理" },
   { path: "/logistics", icon: <CarOutlined />, label: "物流管理" },
   { path: "/orders", icon: <FileTextOutlined />, label: "订单中心" },
@@ -34,6 +39,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">N</div>
         <span className="sidebar-logo-text">North Link</span>
+        <NotificationBell />
       </div>
 
       <nav className="sidebar-nav">
@@ -42,9 +48,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             key={item.path}
             to={item.path}
             end={item.path === "/"}
-            className={({ isActive }) =>
-              `nav-item ${isActive ? "active" : ""}`
-            }
+            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
           >
             <span className="nav-item-icon">{item.icon}</span>
             <span className="nav-item-label">{item.label}</span>

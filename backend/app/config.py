@@ -37,6 +37,18 @@ class Settings(BaseSettings):
     # Sentry
     sentry_dsn: str = ""
 
+    # --- V1.5: AI Engine ---
+    ollama_url: str = "http://localhost:11434/v1"
+    ollama_model: str = "qwen2.5:72b"
+
+    # --- V1.5: BestBuy API ---
+    bestbuy_api_key: str = ""
+
+    # --- V1.5: Scraper Cost Control ---
+    scraper_daily_limit: int = 100
+    scraper_cache_ttl: int = 3600
+    max_subscriptions: int = 20
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
     @property
