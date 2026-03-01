@@ -101,9 +101,10 @@ phases:
   testing:
     name: "测试"
     status: completed
-    started_at: "2026-02-28T23:45:00"
-    completed_at: "2026-02-28T24:05:00"
+    started_at: "2026-02-28T20:15:00"
+    completed_at: "2026-03-01T02:55:00"
     output: "docs/test-report.md"
+    review: "docs/reviews/phase-09-testing.md"
     skill: "dev-senior_qa"
     role: "qa_engineer"
     depends_on: ["backend", "frontend"]
