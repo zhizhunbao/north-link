@@ -53,9 +53,12 @@ desktop.ini
 .kiro/
 .kiro_config/
 backend/.pytest_cache/
+backend/.coverage
 frontend/dist/
 frontend/node_modules/
+frontend/coverage/
 backend/venv/
+htmlcov/
 
 # Environment variables
 .env
