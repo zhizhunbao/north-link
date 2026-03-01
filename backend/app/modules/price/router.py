@@ -24,7 +24,7 @@ from app.modules.price.service import PriceService
 router = APIRouter(prefix="/api/v1/products", tags=["比价中心"])
 
 
-@router.get("/", response_model=PaginatedResponse[ProductListItem])
+@router.get("", response_model=PaginatedResponse[ProductListItem])
 async def list_products(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -83,7 +83,7 @@ async def get_product(
     return await service.get_product_detail(product_id, user_id=current_user.id)
 
 
-@router.post("/", response_model=ProductListItem)
+@router.post("", response_model=ProductListItem)
 async def create_product(
     data: ProductCreate,
     _current_user: User = Depends(get_current_user),

@@ -17,7 +17,7 @@ from app.modules.settings.service import SettingsService
 router = APIRouter(prefix="/api/v1/settings", tags=["系统设置"])
 
 
-@router.get("/", response_model=list[SettingResponse])
+@router.get("", response_model=list[SettingResponse])
 async def list_settings(
     _current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

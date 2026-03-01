@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Form, Input, message } from "antd";
+import { Button, Form, Input, App } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useAuthStore } from "../../stores/useAuthStore";
 import "./Login.css";
@@ -18,6 +18,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
+  const { message } = App.useApp();
 
   const handleSubmit = async (values: LoginForm) => {
     setLoading(true);

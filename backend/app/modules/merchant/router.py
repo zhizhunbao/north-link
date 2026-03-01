@@ -24,7 +24,7 @@ from app.modules.merchant.service import MerchantService
 router = APIRouter(prefix="/api/v1/merchants", tags=["商户管理"])
 
 
-@router.get("/", response_model=PaginatedResponse[MerchantListItem])
+@router.get("", response_model=PaginatedResponse[MerchantListItem])
 async def list_merchants(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -77,7 +77,7 @@ async def get_merchant(
     return await service.get_merchant_detail(merchant_id)
 
 
-@router.post("/", response_model=MerchantListItem)
+@router.post("", response_model=MerchantListItem)
 async def create_merchant(
     data: MerchantCreate,
     _current_user: User = Depends(get_current_user),

@@ -65,7 +65,7 @@ export function DashboardPage() {
               title="今日推荐"
               value={data?.recommendations.length ?? 0}
               prefix={<StarOutlined />}
-              valueStyle={{ color: "var(--color-primary)" }}
+              styles={{ content: { color: "var(--color-primary)" } }}
             />
           </Card>
         </Col>
@@ -84,7 +84,7 @@ export function DashboardPage() {
               title="在途物流"
               value={0}
               prefix={<CarOutlined />}
-              valueStyle={{ color: "var(--color-warning)" }}
+              styles={{ content: { color: "var(--color-warning)" } }}
             />
           </Card>
         </Col>
@@ -96,7 +96,7 @@ export function DashboardPage() {
               precision={2}
               prefix={<DollarOutlined />}
               suffix="CAD"
-              valueStyle={{ color: "var(--color-success)" }}
+              styles={{ content: { color: "var(--color-success)" } }}
             />
           </Card>
         </Col>
@@ -105,7 +105,11 @@ export function DashboardPage() {
       {/* TOP5 Recommendations */}
       <Card
         title="🔥 今日 TOP5 推荐"
-        extra={<span style={{ color: "var(--color-text-tertiary)" }}>{data?.date}</span>}
+        extra={
+          <span style={{ color: "var(--color-text-tertiary)" }}>
+            {data?.date}
+          </span>
+        }
       >
         {loading ? (
           <div style={{ textAlign: "center", padding: 40 }}>
@@ -122,9 +126,22 @@ export function DashboardPage() {
                   hoverable
                   style={{ borderLeft: `3px solid var(--color-primary)` }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          marginBottom: 8,
+                        }}
+                      >
                         <span
                           style={{
                             fontFamily: "var(--font-display)",
@@ -135,18 +152,39 @@ export function DashboardPage() {
                         >
                           #{index + 1}
                         </span>
-                        <span style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            fontSize: "var(--text-sm)",
+                          }}
+                        >
                           {item.product_name}
                         </span>
                       </div>
-                      <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)", marginBottom: 8 }}>
+                      <div
+                        style={{
+                          fontSize: "var(--text-xs)",
+                          color: "var(--color-text-secondary)",
+                          marginBottom: 8,
+                        }}
+                      >
                         {item.category_name} · {item.sku}
                       </div>
                       <div style={{ display: "flex", gap: 12 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "var(--text-sm)",
+                          }}
+                        >
                           🇨🇦 ${item.ca_price?.toFixed(2)}
                         </span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "var(--text-sm)",
+                          }}
+                        >
                           🇨🇳 ¥{item.cn_price?.toFixed(2)}
                         </span>
                       </div>
@@ -165,11 +203,22 @@ export function DashboardPage() {
                                 : "var(--color-profit-low)",
                         }}
                       >
-                        {item.profit_rate >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}{" "}
+                        {item.profit_rate >= 0 ? (
+                          <ArrowUpOutlined />
+                        ) : (
+                          <ArrowDownOutlined />
+                        )}{" "}
                         {(item.profit_rate * 100).toFixed(1)}%
                       </div>
-                      <Tag color={RISK_COLORS[item.risk_level]} style={{ marginTop: 4 }}>
-                        {item.risk_level === "low" ? "低风险" : item.risk_level === "medium" ? "中风险" : "高风险"}
+                      <Tag
+                        color={RISK_COLORS[item.risk_level]}
+                        style={{ marginTop: 4 }}
+                      >
+                        {item.risk_level === "low"
+                          ? "低风险"
+                          : item.risk_level === "medium"
+                            ? "中风险"
+                            : "高风险"}
                       </Tag>
                     </div>
                   </div>

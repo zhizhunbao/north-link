@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/v1/orders", tags=["订单管理"])
 # --- Order CRUD ---
 
 
-@router.get("/", response_model=PaginatedResponse[OrderResponse])
+@router.get("", response_model=PaginatedResponse[OrderResponse])
 async def list_orders(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -72,7 +72,7 @@ async def get_order(
     return await service.get_order(order_id)
 
 
-@router.post("/", response_model=OrderResponse, status_code=201)
+@router.post("", response_model=OrderResponse, status_code=201)
 async def create_order(
     data: OrderCreate,
     current_user: User = Depends(get_current_user),

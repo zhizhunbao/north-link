@@ -18,6 +18,11 @@ def create_app() -> FastAPI:
     # Register middleware (CORS, logging, error handlers)
     setup_middleware(app)
 
+    # Health check endpoints (no auth required)
+    from app.health import router as health_router
+
+    app.include_router(health_router)
+
     # Register API routers
     _register_routers(app)
 
